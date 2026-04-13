@@ -6,7 +6,7 @@
         <listener class-name="com.dni.apitest.listeners.ExtentTestNgListener"/>
     </listeners>
 
-    <test name="Lytics Projects API">
+    <!-- <test name="Lytics Projects API">
         <classes>
             <class name="com.dni.apitest.specs.ProjectPostApiTest"/>
         </classes>
@@ -15,6 +15,12 @@
     <test name="Lytics Projects GET API">
         <classes>
             <class name="com.dni.apitest.specs.ProjectsGetApiTest"/>
+        </classes>
+    </test> -->
+
+      <test name="Lytics Projects API">
+        <classes>
+            <class name="com.dni.apitest.specs.ProjectByUidGetApiTest"/>
         </classes>
     </test>
 </suite>

@@ -1,12 +1,16 @@
 package com.dni.apitest.assertions;
 
+import com.dni.apitest.config.TestConfig;
+import com.dni.apitest.testdata.LyticsProjectTestData;
 import io.restassured.response.Response;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,6 +23,22 @@ public final class ProjectAssertions {
 
     private ProjectAssertions() {}
 
+    /** Inclusive bounds for {@code cdp.aid}: four-digit decimal integer (1000–9999). */
+    private static final int CDP_AID_MIN_INCLUSIVE = 1000;
+    private static final int CDP_AID_MAX_INCLUSIVE = 9999;
+
+    /**
+     * CDP {@code orgId} and {@code accountId} in API responses (e.g. {@code 930afa61e6720d4223efac8761bd9c39}) are
+     * 32-character hexadecimal strings.
+     */
+    private static final Pattern CDP_HEX_32 = Pattern.compile("^[a-fA-F0-9]{32}$");
+
+    /**
+     * Lytics project (and related) resource identifiers are 24-character hexadecimal strings,
+     * consistent with the values in {@link LyticsProjectTestData}.
+     */
+    private static final Pattern LYTICS_HEX_RESOURCE_UID = Pattern.compile("^[a-fA-F0-9]{24}$");
+
     // -------------------------------------------------------------------------
     // Status + envelope
     // -------------------------------------------------------------------------
@@ -28,6 +48,14 @@ public final class ProjectAssertions {
         assertThat(response.getStatusCode()).isEqualTo(400);
         assertThat(response.jsonPath().getString("message")).isEqualTo("Bad request");
         assertThat(response.jsonPath().getInt("status")).isEqualTo(400);
+    }
+
+    /** Asserts HTTP 404 with the standard GET-by-uid "Project not found" envelope. */
+    public static void assertProjectNotFound(Response response) {
+        assertThat(response.getStatusCode()).isEqualTo(404);
+        assertThat(response.jsonPath().getString("message")).isEqualTo("Project not found");
+        assertThat(response.jsonPath().getInt("status")).isEqualTo(404);
+        assertThat(response.jsonPath().getString("error")).isEqualTo("Not Found");
     }
 
     // -------------------------------------------------------------------------
@@ -184,8 +212,12 @@ public final class ProjectAssertions {
      */
     /**
      * Asserts {@code cdp} on a {@code GET /projects} list item matches the CDP contract:
-     * {@code aid} (positive number), {@code orgId}, {@code accountId}, {@code status}
-     * ({@code active}), and {@code syncedAt} (non-blank ISO-8601 instant).
+     * {@code aid} (JSON number, four-digit decimal integer 1000–9999), {@code orgId} and {@code accountId} (each
+     * 32 hex characters as in API responses), {@code status} ({@code active}), and {@code syncedAt} (non-blank
+     * ISO-8601 instant).
+     *
+     * <p>{@code orgId} and {@code accountId} are not sent on {@code POST /projects}; the API assigns them and
+     * returns them on create and read responses.
      *
      * @param project one deserialized project object from the root array
      */
@@ -202,16 +234,10 @@ public final class ProjectAssertions {
                 .as("project [%s] cdp must expose aid, orgId, accountId, status, syncedAt", projectUid)
                 .containsKeys("aid", "orgId", "accountId", "status", "syncedAt");
 
-        Object aid = cdp.get("aid");
-        assertThat(aid)
-                .as("project [%s] cdp.aid must be a JSON number", projectUid)
-                .isInstanceOf(Number.class);
-        assertThat(((Number) aid).intValue())
-                .as("project [%s] cdp.aid must be positive", projectUid)
-                .isPositive();
+        assertCdpAidIsFourDigitJsonNumber(cdp.get("aid"), projectUid);
 
-        assertListedCdpNonBlankString(cdp, "orgId", projectUid);
-        assertListedCdpNonBlankString(cdp, "accountId", projectUid);
+        assertListedCdpHex32Identifier(cdp, "orgId", projectUid);
+        assertListedCdpHex32Identifier(cdp, "accountId", projectUid);
 
         assertThat(cdp.get("status"))
                 .as("project [%s] cdp.status must be a string", projectUid)
@@ -236,15 +262,159 @@ public final class ProjectAssertions {
         }
     }
 
-    private static void assertListedCdpNonBlankString(
-            Map<String, Object> cdp, String field, String projectUid) {
+    /**
+     * Asserts a single-project body (POST 201 or GET /projects/{uid}) includes a {@code cdp} object with
+     * {@code aid}, {@code orgId} and {@code accountId} (32 hex chars each), {@code status} ({@code active}), and
+     * {@code syncedAt} (ISO-8601), same contract as {@link #assertListedProjectCdpMatchesSchema(Map)}. CDP fields
+     * are returned by the API only, not supplied in the create request body.
+     */
+    public static void assertSingleProjectCdpObjectMatchesSchema(Response response) {
+        String uid = response.jsonPath().getString("uid");
+        Map<String, Object> cdp = response.jsonPath().getMap("cdp");
+        assertThat(cdp).as("response body must include a cdp object").isNotNull();
+        Map<String, Object> project = new HashMap<>();
+        project.put("uid", uid != null ? uid : "?");
+        project.put("cdp", cdp);
+        assertListedProjectCdpMatchesSchema(project);
+    }
+
+    /**
+     * Asserts {@code cdp.aid} on GET equals POST for the same project and is a four-digit decimal integer
+     * ({@code 1000}–{@code 9999}), i.e. the stable CDP account id for that project.
+     */
+    public static void assertGetCdpAidMatchesPost(Response postResponse, Response getResponse) {
+        Object postAid = postResponse.jsonPath().get("cdp.aid");
+        Object getAid = getResponse.jsonPath().get("cdp.aid");
+        assertThat(postAid).as("POST response must include cdp.aid").isNotNull();
+        assertThat(getAid).as("GET response must include cdp.aid").isNotNull();
+        assertCdpAidIsFourDigitJsonNumber(postAid, "POST body");
+        assertCdpAidIsFourDigitJsonNumber(getAid, "GET body");
+        assertThat(((Number) getAid).intValue())
+                .as("GET cdp.aid must equal POST cdp.aid for the same project uid")
+                .isEqualTo(((Number) postAid).intValue());
+    }
+
+    /**
+     * Asserts {@code cdp.orgId} on the POST 201 response body and on GET /projects/{uid} is a 32-character
+     * hexadecimal string (e.g. {@code 930afa61e6720d4223efac8761bd9c39}), and that both values match. {@code
+     * cdp.orgId} is not part of the POST request payload; the server sets it when the project is created.
+     */
+    public static void assertGetCdpOrgIdMatchesPost(Response postResponse, Response getResponse) {
+        String postOrgId = postResponse.jsonPath().getString("cdp.orgId");
+        String getOrgId = getResponse.jsonPath().getString("cdp.orgId");
+        assertCdpHex32String(postOrgId, "orgId", "POST 201 response body");
+        assertCdpHex32String(getOrgId, "orgId", "GET response body");
+        assertThat(getOrgId)
+                .as("GET cdp.orgId must equal POST 201 cdp.orgId for the same project uid")
+                .isEqualTo(postOrgId);
+    }
+
+    /**
+     * Asserts {@code cdp.accountId} on the POST 201 response body and on GET /projects/{uid} is a 32-character
+     * hexadecimal string (e.g. {@code 99c7c1fce9bd1d947f7c7d6d88f4deea}), and that both values match. {@code
+     * cdp.accountId} is not part of the POST request payload; the server sets it when the project is created.
+     */
+    public static void assertGetCdpAccountIdMatchesPost(Response postResponse, Response getResponse) {
+        String postAccountId = postResponse.jsonPath().getString("cdp.accountId");
+        String getAccountId = getResponse.jsonPath().getString("cdp.accountId");
+        assertCdpHex32String(postAccountId, "accountId", "POST 201 response body");
+        assertCdpHex32String(getAccountId, "accountId", "GET response body");
+        assertThat(getAccountId)
+                .as("GET cdp.accountId must equal POST 201 cdp.accountId for the same project uid")
+                .isEqualTo(postAccountId);
+    }
+
+    /**
+     * Asserts {@code cdp.status} on the POST 201 response body and on GET /projects/{uid} is {@code active} and
+     * that both match. {@code cdp.status} is not supplied in the create request body; the API returns it on
+     * create and read.
+     */
+    public static void assertGetCdpStatusMatchesPost(Response postResponse, Response getResponse) {
+        String postStatus = postResponse.jsonPath().getString("cdp.status");
+        String getStatus = getResponse.jsonPath().getString("cdp.status");
+        assertThat(postStatus)
+                .as("POST 201 response body must include cdp.status active")
+                .isNotNull()
+                .isEqualTo("active");
+        assertThat(getStatus)
+                .as("GET response body must include cdp.status equal to POST and active")
+                .isNotNull()
+                .isEqualTo("active")
+                .isEqualTo(postStatus);
+    }
+
+    /**
+     * Asserts {@code cdp.syncedAt} on the POST 201 response body and on GET /projects/{uid} are non-blank strings
+     * parseable as ISO-8601 instants (for example {@code 2026-04-13T05:04:23.758Z} with {@link Instant#parse}). {@code
+     * cdp.syncedAt} is returned by the API, not supplied in the create request body.
+     */
+    public static void assertGetCdpSyncedAtFormat(Response postResponse, Response getResponse) {
+        String postSynced = postResponse.jsonPath().getString("cdp.syncedAt");
+        String getSynced = getResponse.jsonPath().getString("cdp.syncedAt");
+        assertIso8601InstantString(postSynced, "POST 201 response body cdp.syncedAt");
+        assertIso8601InstantString(getSynced, "GET response body cdp.syncedAt");
+    }
+
+    /**
+     * Asserts {@code createdBy} on the POST 201 response body and on GET /projects/{uid} are non-blank and equal
+     * (for example {@code blt7a752c371e16a089}). The field identifies the principal that created the project; it is
+     * not supplied in the create request body.
+     */
+    public static void assertGetCreatedByMatchesPost(Response postResponse, Response getResponse) {
+        String postCreatedBy = postResponse.jsonPath().getString("createdBy");
+        String getCreatedBy = getResponse.jsonPath().getString("createdBy");
+        assertThat(postCreatedBy)
+                .as("POST 201 response body must include non-blank createdBy")
+                .isNotBlank();
+        assertThat(getCreatedBy)
+                .as("GET response body must include non-blank createdBy equal to POST 201")
+                .isNotBlank()
+                .isEqualTo(postCreatedBy);
+    }
+
+    /**
+     * Asserts {@code createdAt} on the POST 201 response body and on GET /projects/{uid} are non-blank strings
+     * parseable as ISO-8601 instants (for example {@code 2026-04-13T05:04:13.635Z} with {@link Instant#parse}) and
+     * that GET equals POST. {@code createdAt} is returned by the API, not supplied in the create request body.
+     */
+    public static void assertGetCreatedAtMatchesPost(Response postResponse, Response getResponse) {
+        String postCreatedAt = postResponse.jsonPath().getString("createdAt");
+        String getCreatedAt = getResponse.jsonPath().getString("createdAt");
+        assertIso8601InstantString(postCreatedAt, "POST 201 response body createdAt");
+        assertIso8601InstantString(getCreatedAt, "GET response body createdAt");
+        assertThat(getCreatedAt)
+                .as("GET createdAt must equal POST 201 createdAt for the same project uid")
+                .isEqualTo(postCreatedAt);
+    }
+
+    private static void assertCdpAidIsFourDigitJsonNumber(Object aid, String contextLabel) {
+        assertThat(aid)
+                .as("%s: cdp.aid must be a JSON number", contextLabel)
+                .isInstanceOf(Number.class);
+        int value = ((Number) aid).intValue();
+        assertThat(value)
+                .as(
+                        "%s: cdp.aid must be a four-digit decimal integer (%d–%d)",
+                        contextLabel, CDP_AID_MIN_INCLUSIVE, CDP_AID_MAX_INCLUSIVE)
+                .isBetween(CDP_AID_MIN_INCLUSIVE, CDP_AID_MAX_INCLUSIVE);
+    }
+
+    private static void assertListedCdpHex32Identifier(Map<String, Object> cdp, String field, String projectUid) {
         Object raw = cdp.get(field);
         assertThat(raw)
                 .as("project [%s] cdp.%s must be a string", projectUid, field)
                 .isInstanceOf(String.class);
-        assertThat((String) raw)
-                .as("project [%s] cdp.%s", projectUid, field)
-                .isNotBlank();
+        assertCdpHex32String((String) raw, field, "project [%s]".formatted(projectUid));
+    }
+
+    private static void assertCdpHex32String(String value, String fieldName, String contextDescription) {
+        assertThat(value)
+                .as(
+                        "%s: cdp.%s must be 32 hexadecimal characters (e.g. 930afa61e6720d4223efac8761bd9c39)",
+                        contextDescription, fieldName)
+                .isNotNull()
+                .isNotBlank()
+                .matches(CDP_HEX_32);
     }
 
     public static void assertListedProjectConnectionsMatchSchema(Map<String, Object> project) {
@@ -272,6 +442,110 @@ public final class ProjectAssertions {
                 .as("project [%s] connections must be present", projectUid)
                 .isNotNull();
         assertConnectionsShape(projectUid, connections);
+    }
+
+    /**
+     * Asserts a {@code GET /projects/{uid}} body carries the same core fields and connection IDs that
+     * were sent on {@code POST /projects} for a full valid create payload (default connections from
+     * {@link com.dni.apitest.testdata.LyticsProjectPayloadBuilder#validFullProjectCreatePayload()} /
+     * {@link com.dni.apitest.testdata.LyticsProjectPayloadBuilder#validFullProjectCreatePayloadWithName(String)}).
+     *
+     * @param getResponse         successful GET /projects/{uid} response
+     * @param expectedUid         project uid (must match path and body {@code uid})
+     * @param expectedName        expected {@code name} from the create request
+     * @param expectedDomain      expected {@code domain} from the create request
+     * @param expectedDescription expected {@code description} from the create request
+     */
+    public static void assertGetByUidResponseMatchesPostPayload(
+            Response getResponse,
+            String expectedUid,
+            String expectedName,
+            String expectedDomain,
+            String expectedDescription) {
+        assertThat(getResponse.jsonPath().getString("uid"))
+                .as("GET uid must match the project created by POST")
+                .isEqualTo(expectedUid);
+
+        assertThat(getResponse.jsonPath().getString("name")).isEqualTo(expectedName);
+        assertThat(getResponse.jsonPath().getString("domain")).isEqualTo(expectedDomain);
+        assertThat(getResponse.jsonPath().getString("description")).isEqualTo(expectedDescription);
+
+        assertThat(getResponse.jsonPath().getString("organizationUid"))
+                .as("GET project organization must match configured organization_uid header")
+                .isEqualTo(TestConfig.lyticsOrganizationUid());
+
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+                .as("connections.stackApiKeys must match POST payload")
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+                .as("connections.launchProjectUids must match POST payload")
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .as("connections.personalizeProjectUids must match POST payload")
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+
+        assertThat(getResponse.jsonPath().getString("cdp.status")).isEqualTo("active");
+    }
+
+    /**
+     * Asserts GET {@code connections} (stackApiKeys, launchProjectUids, personalizeProjectUids) matches a
+     * successful POST /projects response for the same project.
+     */
+    public static void assertGetConnectionsMatchPost(Response postResponse, Response getResponse) {
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+                .as("GET connections.stackApiKeys must equal POST response")
+                .isEqualTo(postResponse.jsonPath().getList("connections.stackApiKeys"));
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+                .as("GET connections.launchProjectUids must equal POST response")
+                .isEqualTo(postResponse.jsonPath().getList("connections.launchProjectUids"));
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .as("GET connections.personalizeProjectUids must equal POST response")
+                .isEqualTo(postResponse.jsonPath().getList("connections.personalizeProjectUids"));
+    }
+
+    /**
+     * Asserts GET {@code connections.stackApiKeys} equals the array on a successful POST /projects response.
+     */
+    public static void assertGetStackApiKeysMatchPost(Response postResponse, Response getResponse) {
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+                .as("GET connections.stackApiKeys must equal POST response")
+                .isEqualTo(postResponse.jsonPath().getList("connections.stackApiKeys"));
+    }
+
+    /**
+     * Asserts GET {@code connections.launchProjectUids} equals the array on a successful POST /projects response.
+     */
+    public static void assertGetLaunchProjectUidsMatchPost(Response postResponse, Response getResponse) {
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+                .as("GET connections.launchProjectUids must equal POST response")
+                .isEqualTo(postResponse.jsonPath().getList("connections.launchProjectUids"));
+    }
+
+    /**
+     * Asserts GET {@code connections.personalizeProjectUids} equals the array on a successful POST /projects
+     * response.
+     */
+    public static void assertGetPersonalizeProjectUidsMatchPost(Response postResponse, Response getResponse) {
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .as("GET connections.personalizeProjectUids must equal POST response")
+                .isEqualTo(postResponse.jsonPath().getList("connections.personalizeProjectUids"));
+    }
+
+    /**
+     * Asserts {@code connections.stackApiKeys}, {@code connections.launchProjectUids}, and {@code
+     * connections.personalizeProjectUids} each contain no duplicate entries (same value must not appear twice).
+     */
+    public static void assertConnectionsArraysHaveNoDuplicateEntries(Response response) {
+        assertConnectionListHasNoDuplicates(response, "connections.stackApiKeys");
+        assertConnectionListHasNoDuplicates(response, "connections.launchProjectUids");
+        assertConnectionListHasNoDuplicates(response, "connections.personalizeProjectUids");
+    }
+
+    private static void assertConnectionListHasNoDuplicates(Response response, String jsonPath) {
+        List<?> list = response.jsonPath().getList(jsonPath);
+        assertThat(list)
+                .as("%s must not contain duplicate entries", jsonPath)
+                .doesNotHaveDuplicates();
     }
 
     private static void assertConnectionsShape(String projectUid, Map<String, Object> connections) {
@@ -305,6 +579,25 @@ public final class ProjectAssertions {
     // -------------------------------------------------------------------------
     // GET /projects/{uid} — timestamp strings
     // -------------------------------------------------------------------------
+
+    /**
+     * Asserts the JSON {@code uid} field is present, non-blank, and matches the Lytics
+     * 24-character hexadecimal resource identifier format.
+     *
+     * @param contextLabel short label for assertion messages (e.g. {@code "POST /projects response"})
+     */
+    public static void assertLyticsProjectUidField(Response response, String contextLabel) {
+        String uid = response.jsonPath().getString("uid");
+        assertThat(uid)
+                .as("%s: uid must be present", contextLabel)
+                .isNotNull();
+        assertThat(uid)
+                .as("%s: uid must be non-empty", contextLabel)
+                .isNotBlank();
+        assertThat(uid)
+                .as("%s: uid must be 24 hex characters", contextLabel)
+                .matches(LYTICS_HEX_RESOURCE_UID);
+    }
 
     /**
      * Asserts {@code createdAt}, {@code updatedAt}, and {@code cdp.syncedAt} on a

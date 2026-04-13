@@ -1,7 +1,7 @@
 package com.dni.apitest.base;
 
 import com.dni.apitest.config.TestConfig;
-import com.dni.apitest.constants.ApiPaths;
+import com.dni.apitest.http.LyticsProjectApiClient;
 import com.dni.apitest.report.ReportSteps;
 import io.restassured.RestAssured;
 import io.restassured.builder.RequestSpecBuilder;
@@ -14,28 +14,37 @@ import io.restassured.specification.ResponseSpecification;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 
-import static io.restassured.RestAssured.given;
-
 /**
- * REST Assured setup for Lytics API: base URI and headers on {@link #lyticsRequestSpec}.
+ * Base class for Lytics API tests.
+ *
+ * <p>Configures REST Assured with the Lytics base URI and required auth headers, then exposes
+ * a shared {@link LyticsProjectApiClient} for use in test methods.  Automatic project cleanup
+ * via {@link #cleanupLyticsProject()} runs after every test method.
  */
 public abstract class LyticsBaseApiTest {
 
+    /** Pre-built request spec carrying base URI + Lytics auth headers. */
     protected static RequestSpecification lyticsRequestSpec;
     protected static ResponseSpecification responseSpec;
 
     /**
-     * Set as soon as a test creates a project (e.g. after POST returns 201 with a uid). {@link #cleanupLyticsProject()}
-     * sends DELETE and clears this field.
+     * Reusable HTTP client for POST /projects and DELETE /projects/{uid}.
+     * Initialised in {@link #configureLyticsRestAssured()} and ready for all test methods.
+     */
+    protected static LyticsProjectApiClient projectApiClient;
+
+    /**
+     * Set to the created project UID after a test creates a project (status 201).
+     * {@link #cleanupLyticsProject()} deletes it and clears this field after each test.
      */
     protected String projectUidToCleanup;
 
-    /** Log a numbered-style step to the Extent report for the current test method. */
+    /** Logs a numbered step to the Extent report for the currently running test. */
     protected static void reportStep(String message) {
         ReportSteps.step(message);
     }
 
-    /** Attach the response JSON body to the Extent report (pretty-printed when possible). */
+    /** Attaches the response body to the Extent report as a highlighted JSON block. */
     protected static void reportResponseBody(Response response) {
         if (response == null) {
             return;
@@ -61,8 +70,15 @@ public abstract class LyticsBaseApiTest {
         responseSpec = new ResponseSpecBuilder()
                 .log(LogDetail.STATUS)
                 .build();
+
+        projectApiClient = new LyticsProjectApiClient(
+                TestConfig.lyticsBaseUri(), lyticsRequestSpec);
     }
 
+    /**
+     * Deletes the project created during the test, if any.  Best-effort: exceptions are
+     * swallowed so a failed DELETE does not mask a passing test assertion.
+     */
     @AfterMethod(alwaysRun = true)
     public void cleanupLyticsProject() {
         if (projectUidToCleanup == null || projectUidToCleanup.isBlank()) {
@@ -72,17 +88,12 @@ public abstract class LyticsBaseApiTest {
         projectUidToCleanup = null;
 
         try {
-            given()
-                    .spec(lyticsRequestSpec)
-            .when()
-                    .delete(ApiPaths.projectByUid(uid))
-            .then()
+            projectApiClient.deleteProject(uid)
+                    .then()
                     .statusCode(204);
         } catch (Throwable e) {
-            // TestNG marks the @Test as FAILED if @AfterMethod throws — even when assertions passed.
-            // Cleanup is best-effort; log and continue so the report reflects the test outcome, not DELETE noise.
             System.err.println(
-                    "[cleanup] Optional DELETE /projects/" + uid + " failed (ignored): " + e.getMessage());
+                    "[cleanup] DELETE /projects/" + uid + " failed (ignored): " + e.getMessage());
         }
     }
 }

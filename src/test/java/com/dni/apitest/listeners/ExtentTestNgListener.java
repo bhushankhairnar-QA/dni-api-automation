@@ -1,7 +1,8 @@
-package com.dni.apitest.report;
+package com.dni.apitest.listeners;
 
 import com.aventstack.extentreports.ExtentTest;
 import com.aventstack.extentreports.Status;
+import com.dni.apitest.report.ExtentManager;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 import org.testng.ITestContext;
@@ -9,8 +10,18 @@ import org.testng.ITestListener;
 import org.testng.ITestResult;
 
 /**
- * Creates one Spark HTML report per suite, one {@link ExtentTest} per TestNG test method,
- * and maps pass / fail / skip to Extent statuses.
+ * TestNG listener that maps test lifecycle events to Extent Reports entries.
+ *
+ * <p>Creates one Spark HTML report per suite, one {@link ExtentTest} per test method,
+ * and maps pass / fail / skip to Extent statuses.  Network failures are tagged with the
+ * "Connectivity" category so they stand out from genuine API assertion failures.
+ *
+ * <p>Register in {@code testng.xml}:
+ * <pre>
+ * &lt;listeners&gt;
+ *   &lt;listener class-name="com.dni.apitest.listeners.ExtentTestNgListener"/&gt;
+ * &lt;/listeners&gt;
+ * </pre>
  */
 public final class ExtentTestNgListener implements ITestListener, ISuiteListener {
 
@@ -26,7 +37,7 @@ public final class ExtentTestNgListener implements ITestListener, ISuiteListener
 
     @Override
     public void onStart(ITestContext context) {
-        // no-op: suite-level init is enough
+        // suite-level init is sufficient
     }
 
     @Override
@@ -62,11 +73,10 @@ public final class ExtentTestNgListener implements ITestListener, ISuiteListener
             if (t != null) {
                 if (isLikelyConnectivityFailure(t)) {
                     test.assignCategory("Connectivity");
-                    test.log(
-                            Status.WARNING,
-                            "Failure looks like a network/DNS/connect issue (e.g. VPN, firewall, or bad "
-                                    + "lytics.base.uri). Fix connectivity before treating this as an API assertion "
-                                    + "failure.");
+                    test.log(Status.WARNING,
+                            "Failure looks like a network/DNS/connect issue (VPN, firewall, or bad "
+                                    + "lytics.base.uri). Fix connectivity before treating this as an API "
+                                    + "assertion failure.");
                 }
                 test.fail(t);
             } else {

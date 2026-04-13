@@ -3,12 +3,12 @@
 <suite name="DNI API Test Suite" verbose="1">
 
     <listeners>
-        <listener class-name="com.dni.apitest.report.ExtentTestNgListener"/>
+        <listener class-name="com.dni.apitest.listeners.ExtentTestNgListener"/>
     </listeners>
 
     <test name="Lytics Projects API">
         <classes>
-            <class name="com.dni.apitest.specs.PostsApiTest"/>
+            <class name="com.dni.apitest.specs.LyticsProjectApiTest"/>
         </classes>
     </test>
 </suite>

@@ -13,7 +13,7 @@ import static io.restassured.RestAssured.given;
  * Reusable REST Assured HTTP client for the Lytics Projects API.
  *
  * <p>Standard test methods use {@link #listProjects()}, {@link #getProject(String)},
- * {@link #createProject(Map)}, and {@link #deleteProject(String)}, which operate on the pre-built
+ * {@link #createProject(Map)}, {@link #updateProject(String, Map)}, and {@link #deleteProject(String)}, which operate on the pre-built
  * {@code lyticsRequestSpec}.
  * Header-validation tests that need
  * to supply or omit specific headers should call
@@ -67,6 +67,20 @@ public class LyticsProjectApiClient {
                 .body(payload)
                 .when()
                 .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+    }
+
+    /**
+     * PUT /projects/{uid} with the supplied JSON body using the shared request spec.
+     */
+    public Response updateProject(String uid, Map<String, Object> payload) {
+        return given()
+                .spec(requestSpec)
+                .body(payload)
+                .when()
+                .put(ApiPaths.projectByUid(uid))
                 .then()
                 .extract()
                 .response();

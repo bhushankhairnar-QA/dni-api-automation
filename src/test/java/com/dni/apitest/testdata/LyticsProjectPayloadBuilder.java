@@ -16,7 +16,7 @@ import static com.dni.apitest.testdata.LyticsProjectTestData.*;
  *
  * <p>Naming convention:
  * <ul>
- *   <li>{@code validFullProjectCreate*()} — payloads expected to yield 201 (or 400 duplicate)</li>
+ *   <li>{@code validFullProjectCreate*()} — payloads expected to yield 201 (or 400 duplicate); the same maps are used for PUT /projects/{uid} when a full resource body is required</li>
  *   <li>{@code projectCreatePayloadWith*()} — payloads with a specific field variation</li>
  *   <li>{@code projectCreatePayloadWithout*()} — payloads missing a required field</li>
  *   <li>{@code connections*()} — helpers that build only the {@code connections} sub-object</li>

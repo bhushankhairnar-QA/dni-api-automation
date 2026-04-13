@@ -28,7 +28,7 @@ public abstract class BaseApiTest {
     protected static ResponseSpecification responseSpec;
 
     /**
-     * Reusable HTTP client for POST /projects and DELETE /projects/{uid}.
+     * Reusable HTTP client for POST /projects, PUT /projects/{uid}, and DELETE /projects/{uid}.
      * Initialised in {@link #configureLyticsRestAssured()} and ready for all test methods.
      */
     protected static LyticsProjectApiClient projectApiClient;

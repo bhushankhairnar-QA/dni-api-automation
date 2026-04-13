@@ -7,7 +7,7 @@
     </listeners>
 
 
-    <test name="Lytics Projects POST API">
+    <!-- <test name="Lytics Projects POST API">
         <classes>
             <class name="com.dni.apitest.specs.ProjectPostApiTest"/>
         </classes>
@@ -22,6 +22,12 @@
     <test name="Lytics Project By UID GET API">
         <classes>
             <class name="com.dni.apitest.specs.ProjectByUidGetApiTest"/>
+        </classes>
+    </test> -->
+
+    <test name="Lytics Project By UID PUT API">
+        <classes>
+            <class name="com.dni.apitest.specs.ProjectByUidPutApiTest"/>
         </classes>
     </test>
 </suite>

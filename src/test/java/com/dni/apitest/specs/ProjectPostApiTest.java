@@ -34,9 +34,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -76,7 +76,9 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 2,description = "POST /projects without `name` — expect 400 and aggregated name validation errors")
+    @Test(
+            priority = 2,
+            description = "POST /projects without `name` — expect 400 and aggregated name validation errors")
     public void TC_002_Send_POST_request_without_project_name_field() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -86,9 +88,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithoutName())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -121,7 +123,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo(LyticsProjectTestData.PROJECT_NAME_MAX_LENGTH);
     }
 
-    @Test(priority = 3,description = "POST /projects with empty string name — expect 400 NOT_EMPTY on errors.name")
+    @Test(
+            priority = 3,
+            description = "POST /projects with empty string name — expect 400 NOT_EMPTY on errors.name")
     public void TC_003_Send_POST_request_with_empty_string_as_project_name() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -131,9 +135,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithEmptyName())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -150,7 +154,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.NOT_EMPTY");
     }
 
-    @Test(priority = 4,description = "POST /projects with whitespace-only name — expect 400 NOT_EMPTY")
+    @Test(
+            priority = 4,
+            description = "POST /projects with whitespace-only name — expect 400 NOT_EMPTY")
     public void TC_004_Send_POST_request_with_only_spaces_in_project_name() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -160,9 +166,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithSpaceOnlyName())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -179,7 +185,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.NOT_EMPTY");
     }
 
-    @Test(priority = 5,description = "POST /projects with name length exactly 200 — expect 201 or 400 duplicate")
+    @Test(
+            priority = 5,
+            description = "POST /projects with name length exactly 200 — expect 201 or 400 duplicate")
     public void TC_005_Send_POST_request_with_project_name_length_exactly_200_characters() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -193,9 +201,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithMaxLengthName())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -234,7 +242,9 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 6,description = "POST /projects with name longer than 200 chars — expect 400 MAX_CHAR_LIMIT")
+    @Test(
+            priority = 6,
+            description = "POST /projects with name longer than 200 chars — expect 400 MAX_CHAR_LIMIT")
     public void TC_006_Send_POST_request_with_project_name_length_more_than_200_characters() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -248,9 +258,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameOverMaxLength())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -286,9 +296,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(uniqueName))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -305,9 +315,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(uniqueName))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -342,9 +352,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(
                                         LyticsProjectTestData.PROJECT_NAME_WITH_SPECIAL_CHARS))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -402,9 +412,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(
                                         LyticsProjectTestData.PROJECT_NAME_WITH_NUMBERS))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -462,9 +472,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(
                                         LyticsProjectTestData.PROJECT_NAME_LOWERCASE_DNI_TEST))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -525,9 +535,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(
                                         LyticsProjectTestData.PROJECT_NAME_LEADING_TRAILING_SPACES))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -571,7 +581,9 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 12, description = "POST /projects with `name` explicitly null — expect 400 validation on errors.name")
+    @Test(
+            priority = 12,
+            description = "POST /projects with `name` explicitly null — expect 400 validation on errors.name")
     public void TC_012_Send_POST_request_with_null_as_project_name() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -581,9 +593,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithNullName())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -615,7 +627,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo(LyticsProjectTestData.PROJECT_NAME_MAX_LENGTH);
     }
 
-    @Test(priority = 13,description ="POST /projects with very long name (200 chars) including spaces and symbols — expect 201 or 400 duplicate (same as TC_001)")
+    @Test(
+            priority = 13,
+            description =
+                    "POST /projects with very long name (200 chars) including spaces and symbols — expect 201 or 400 duplicate (same as TC_001)")
     public void TC_013_Send_POST_request_with_very_long_name_spaces_and_symbols_within_max_length() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -631,9 +646,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithLongSpacesSymbolsName())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -672,7 +687,10 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 14,description ="POST /projects with valid domain (e.g. example.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
+    @Test(
+            priority = 14,
+            description =
+                    "POST /projects with valid domain (e.g. example.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
     public void TC_014_Send_POST_request_with_valid_domain_example_com() {
         reportStep("Reset cleanup uid so this run does not delete an unrelated project");
         projectUidToCleanup = null;
@@ -685,9 +703,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                 LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameAndDomain(
                                         LyticsProjectTestData.VALID_PROJECT_NAME,
                                         LyticsProjectTestData.EXAMPLE_COM_DOMAIN))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -727,7 +745,9 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 15, description = "POST /projects without `domain` — expect 400 and aggregated domain validation errors")
+    @Test(
+            priority = 15,
+            description = "POST /projects without `domain` — expect 400 and aggregated domain validation errors")
     public void TC_015_Send_POST_request_without_domain_field() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -737,9 +757,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithoutDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -773,7 +793,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo(LyticsProjectTestData.PROJECT_DOMAIN_MAX_LENGTH);
     }
 
-    @Test(priority = 16, description = "POST /projects with empty string domain — expect 400 INVALID_DOMAIN and NOT_EMPTY on errors.domain")
+    @Test(
+            priority = 16,
+            description =
+                    "POST /projects with empty string domain — expect 400 INVALID_DOMAIN and NOT_EMPTY on errors.domain")
     public void TC_016_Send_POST_request_with_empty_string_as_domain() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -783,9 +806,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithEmptyDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -807,7 +830,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                         "lytics.PROJECTS.NOT_EMPTY");
     }
 
-    @Test(priority = 17, description = "POST /projects with whitespace-only domain — expect 400 INVALID_DOMAIN and NOT_EMPTY on errors.domain")
+    @Test(
+            priority = 17,
+            description =
+                    "POST /projects with whitespace-only domain — expect 400 INVALID_DOMAIN and NOT_EMPTY on errors.domain")
     public void TC_017_Send_POST_request_with_only_spaces_in_domain() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -817,9 +843,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithSpaceOnlyDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -841,7 +867,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                         "lytics.PROJECTS.NOT_EMPTY");
     }
 
-    @Test(priority = 18, description = "POST /projects with domain length exactly 200 — expect 201 or 400 duplicate (same as TC_001)")
+    @Test(
+            priority = 18,
+            description =
+                    "POST /projects with domain length exactly 200 — expect 201 or 400 duplicate (same as TC_001)")
     public void TC_018_Send_POST_request_with_domain_length_exactly_200_characters() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -855,9 +884,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithMaxLengthDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -865,7 +894,10 @@ public class ProjectPostApiTest extends BaseApiTest {
         reportResponseBody(response);
     }
 
-    @Test(priority = 19, description = "POST /projects with domain longer than 200 chars — expect 400 MAX_CHAR_LIMIT on errors.domain")
+    @Test(
+            priority = 19,
+            description =
+                    "POST /projects with domain longer than 200 chars — expect 400 MAX_CHAR_LIMIT on errors.domain")
     public void TC_019_Send_POST_request_with_domain_length_more_than_200_characters() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -879,19 +911,20 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithDomainOverMaxLength())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
         response.prettyPrint();
         reportResponseBody(response);
-
-       
     }
 
-    @Test(priority = 20, description = "POST /projects with invalid domain format (abc) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 20,
+            description =
+                    "POST /projects with invalid domain format (abc) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_020_Send_POST_request_with_invalid_domain_format_abc() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -901,9 +934,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithInvalidDomainFormatAbc())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -920,7 +953,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
     }
 
-    @Test(priority = 21, description = "POST /projects with domain missing TLD (e.g. example) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 21,
+            description =
+                    "POST /projects with domain missing TLD (e.g. example) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_021_Send_POST_request_with_domain_missing_tld() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -930,9 +966,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDomainMissingTld())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -949,7 +985,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
     }
 
-    @Test(priority = 22, description = "POST /projects with domain containing special characters (exa$mple.com) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 22,
+            description =
+                    "POST /projects with domain containing special characters (exa$mple.com) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_022_Send_POST_request_with_domain_having_special_characters() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -959,9 +998,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDomainSpecialCharacters())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -978,7 +1017,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
     }
 
-    @Test(priority = 23, description = "POST /projects with domain containing spaces (example .com) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 23,
+            description =
+                    "POST /projects with domain containing spaces (example .com) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_023_Send_POST_request_with_domain_having_spaces() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -988,9 +1030,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDomainHavingSpaces())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1007,7 +1049,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
     }
 
-    @Test(priority = 24, description = "POST /projects with valid subdomain (sub.example.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
+    @Test(
+            priority = 24,
+            description =
+                    "POST /projects with valid subdomain (sub.example.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
     public void TC_024_Send_POST_request_with_valid_subdomain_example_com() {
         reportStep("Reset cleanup uid so this run does not delete an unrelated project");
         projectUidToCleanup = null;
@@ -1017,9 +1062,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithValidSubdomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1059,7 +1104,10 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 25, description = "POST /projects with uppercase domain (EXAMPLE.COM) — expect 201 Created or 400 duplicate name (same as TC_001)")
+    @Test(
+            priority = 25,
+            description =
+                    "POST /projects with uppercase domain (EXAMPLE.COM) — expect 201 Created or 400 duplicate name (same as TC_001)")
     public void TC_025_Send_POST_request_with_uppercase_domain_example_com() {
         reportStep("Reset cleanup uid so this run does not delete an unrelated project");
         projectUidToCleanup = null;
@@ -1069,9 +1117,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithUppercaseDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1128,9 +1176,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithDomainLeadingTrailingSpaces())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1171,7 +1219,10 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 27, description = "POST /projects with `domain` explicitly null — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 27,
+            description =
+                    "POST /projects with `domain` explicitly null — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_027_Send_POST_request_with_null_as_domain() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -1181,9 +1232,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithNullDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1217,7 +1268,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo(LyticsProjectTestData.PROJECT_DOMAIN_MAX_LENGTH);
     }
 
-    @Test(priority = 28, description = "POST /projects with numeric domain (123.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
+    @Test(
+            priority = 28,
+            description =
+                    "POST /projects with numeric domain (123.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
     public void TC_028_Send_POST_request_with_numeric_domain_123_com() {
         reportStep("Reset cleanup uid so this run does not delete an unrelated project");
         projectUidToCleanup = null;
@@ -1227,9 +1281,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNumericDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1269,7 +1323,10 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 29, description = "POST /projects with hyphenated domain (my-site.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
+    @Test(
+            priority = 29,
+            description =
+                    "POST /projects with hyphenated domain (my-site.com) — expect 201 Created or 400 duplicate name (same as TC_001)")
     public void TC_029_Send_POST_request_with_hyphenated_domain_my_site_com() {
         reportStep("Reset cleanup uid so this run does not delete an unrelated project");
         projectUidToCleanup = null;
@@ -1279,9 +1336,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithHyphenatedDomain())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1321,7 +1378,10 @@ public class ProjectPostApiTest extends BaseApiTest {
         }
     }
 
-    @Test(priority = 30, description = "POST /projects with domain starting with hyphen (-example.com) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 30,
+            description =
+                    "POST /projects with domain starting with hyphen (-example.com) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_030_Send_POST_request_with_domain_starting_with_hyphen() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -1331,9 +1391,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDomainStartingWithHyphen())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1350,7 +1410,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
     }
 
-    @Test(priority = 31, description = "POST /projects with domain ending with hyphen in a label (example-.com) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 31,
+            description =
+                    "POST /projects with domain ending with hyphen in a label (example-.com) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_031_Send_POST_request_with_domain_ending_with_hyphen() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -1360,9 +1423,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDomainEndingWithHyphen())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1379,7 +1442,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
     }
 
-    @Test(priority = 32, description = "POST /projects with consecutive dots in domain (example..com) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 32,
+            description =
+                    "POST /projects with consecutive dots in domain (example..com) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_032_Send_POST_request_with_domain_consecutive_dots() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -1389,9 +1455,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDomainConsecutiveDots())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1408,7 +1474,10 @@ public class ProjectPostApiTest extends BaseApiTest {
                 .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
     }
 
-    @Test(priority = 33, description = "POST /projects with full URL as domain (https://example.com) — expect 400 INVALID_DOMAIN on errors.domain")
+    @Test(
+            priority = 33,
+            description =
+                    "POST /projects with full URL as domain (https://example.com) — expect 400 INVALID_DOMAIN on errors.domain")
     public void TC_033_Send_POST_request_with_https_url_as_domain() {
         reportStep("Reset cleanup uid");
         projectUidToCleanup = null;
@@ -1418,9 +1487,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDomainAsHttpsUrl())
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1454,9 +1523,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.projectCreatePayloadWithoutDescriptionField(
                                         uniqueName, LyticsProjectTestData.VALID_DOMAIN))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1509,9 +1578,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.SAMPLE_PROJECT_DESCRIPTION))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1561,9 +1630,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.EMPTY_DESCRIPTION))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1616,9 +1685,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.SPACE_ONLY_DESCRIPTION))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1674,9 +1743,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.DESCRIPTION_EXACTLY_MAX_LENGTH))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1733,9 +1802,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.DESCRIPTION_ONE_OVER_MAX_LENGTH))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1773,9 +1842,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
                                         uniqueName, LyticsProjectTestData.VALID_DOMAIN, null))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1828,9 +1897,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.DESCRIPTION_SPECIAL_CHARS))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1880,9 +1949,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.DESCRIPTION_NUMERIC_ONLY))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1932,9 +2001,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.DESCRIPTION_ALPHANUMERIC_SPECIAL))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -1987,9 +2056,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.DESCRIPTION_VERY_LONG_WITH_SPACES_MAX))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -2041,9 +2110,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
                                         uniqueName, LyticsProjectTestData.VALID_DOMAIN, description))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -2095,9 +2164,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .body(
                                 LyticsProjectPayloadBuilder.projectCreatePayloadWithEmptyConnectionsObject(
                                         uniqueName, LyticsProjectTestData.VALID_DOMAIN, description))
-                .when()
+                        .when()
                         .post(ApiPaths.PROJECTS)
-                .then()
+                        .then()
                         .extract()
                         .response();
 
@@ -2129,7 +2198,6 @@ public class ProjectPostApiTest extends BaseApiTest {
             assertThat(response.jsonPath().getString("errors.name[0].code"))
                     .isEqualTo("lytics.PROJECTS.DUPLICATE_PROJECT_NAME");
         }
-    
     }
 
     @Test(
@@ -2149,9 +2217,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(uniqueName))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -2211,9 +2279,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithDuplicateConnectionEntries(uniqueName))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -2275,9 +2343,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -2346,9 +2414,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -2417,9 +2485,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -2468,7 +2536,9 @@ public class ProjectPostApiTest extends BaseApiTest {
     }
 
     @Test(
-        priority = 52,description ="POST /projects with stack + personalize and launchProjectUids mixing valid UID and empty string")
+            priority = 52,
+            description =
+                    "POST /projects with stack + personalize and launchProjectUids mixing valid UID and empty string")
     public void TC_052_Send_POST_request_with_stack_personalize_and_empty_string_in_launchProjectUids() {
         reportStep("Reset cleanup uid so this run does not delete an unrelated project");
         projectUidToCleanup = null;
@@ -2487,13 +2557,13 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
         response.prettyPrint();
-        reportResponseBody(response);                   
+        reportResponseBody(response);
         reportStep("Assert status is 201 (created) or 400 (duplicate name or duplicate connection)");
         int statusCode = response.getStatusCode();
         assertThat(statusCode)
@@ -2558,9 +2628,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
         response.prettyPrint();
@@ -2644,9 +2714,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
         response.prettyPrint();
@@ -2679,7 +2749,7 @@ public class ProjectPostApiTest extends BaseApiTest {
             assertThat(response.jsonPath().getList("connections.launchProjectUids"))
                     .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
             assertThat(response.jsonPath().getList("connections.personalizeProjectUids"))
-                    .isEmpty();         
+                    .isEmpty();
             assertThat(response.jsonPath().getString("cdp.status")).isEqualTo("active");
         } else {
             reportStep(
@@ -2731,9 +2801,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
         response.prettyPrint();
@@ -2774,9 +2844,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
         response.prettyPrint();
@@ -2823,9 +2893,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
         response.prettyPrint();
@@ -2872,9 +2942,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
         response.prettyPrint();
@@ -2917,9 +2987,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDuplicateStackApiKeysOnly(uniqueName))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -2986,9 +3056,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3023,9 +3093,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                                         uniqueName,
                                         LyticsProjectTestData.VALID_DOMAIN,
                                         LyticsProjectTestData.VALID_DESCRIPTION))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3088,9 +3158,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(firstProjectName))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3116,9 +3186,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithName(secondProjectName))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3151,9 +3221,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                 given()
                         .spec(lyticsRequestSpec)
                         .body(LyticsProjectPayloadBuilder.projectCreatePayloadWithDifferentOrganizationConnections(uniqueName))
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3195,9 +3265,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", TestConfig.lyticsOrganizationUid())
                         .header("authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3230,9 +3300,9 @@ public class ProjectPostApiTest extends BaseApiTest {
 
             assertThat(response.jsonPath().getString("cdp.status"))
                     .isEqualTo("active");
-        }else{
+        } else {
             assertThat(response.jsonPath().getString("errors.name[0].code"))
-                    .isEqualTo("lytics.PROJECTS.DUPLICATE_PROJECT_NAME");                                                               
+                    .isEqualTo("lytics.PROJECTS.DUPLICATE_PROJECT_NAME");
         }
     }
 
@@ -3252,9 +3322,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", TestConfig.lyticsOrganizationUid())
                         .header("authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3285,9 +3355,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("x-cs-api-version", TestConfig.lyticsApiVersion())
                         .header("authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3321,9 +3391,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("x-cs-api-version", TestConfig.lyticsApiVersion())
                         .header("organization_uid", TestConfig.lyticsOrganizationUid())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3359,9 +3429,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", TestConfig.lyticsOrganizationUid())
                         .header("authtoken", "invalid-authtoken-" + UUID.randomUUID())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3404,9 +3474,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", TestConfig.lyticsOrganizationUid())
                         .header("authtoken", expiredToken.get())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3421,7 +3491,8 @@ public class ProjectPostApiTest extends BaseApiTest {
         assertThat(response.jsonPath().getString("errors.authtoken[0]")).isEqualTo("is not valid.");
     }
 
-    @Test(enabled = false,
+    @Test(
+            enabled = false,
             priority = 70,
             description =
                     "POST /projects with invalid organization_uid header (wrong format) — expect 403 Forbidden")
@@ -3442,9 +3513,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", "test12209876543210")
                         .header("authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3481,9 +3552,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", nonExistingOrgUid)
                         .header("authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3517,9 +3588,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", TestConfig.lyticsOrganizationUid())
                         .header("authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3555,9 +3626,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("organization_uid", TestConfig.lyticsOrganizationUid())
                         .header("authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3595,9 +3666,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("Organization_Uid", TestConfig.lyticsOrganizationUid())
                         .header("Authtoken", TestConfig.lyticsAuthToken())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 
@@ -3656,9 +3727,9 @@ public class ProjectPostApiTest extends BaseApiTest {
                         .header("X-Unknown-Test-Header", "arbitrary-value-" + UUID.randomUUID())
                         .header("X-Client-Opaque-Id", UUID.randomUUID().toString())
                         .body(LyticsProjectPayloadBuilder.validFullProjectCreatePayload())
-                        .when()
+                                .when()
                         .post(ApiPaths.PROJECTS)
-                        .then()
+                                .then()
                         .extract()
                         .response();
 

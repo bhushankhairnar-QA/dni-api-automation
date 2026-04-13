@@ -20,8 +20,15 @@ public final class TestConfig {
     private static final String LYTICS_EXPIRED_AUTH_TOKEN_KEY = "lytics.auth.token.expired";
 
     private static final String LYTICS_API_VERSION_KEY = "lytics.api.version";
+    /**
+     * Optional SLA (milliseconds) for GET /projects response-time assertions. System property overrides file;
+     * when unset, {@link #lyticsGetMaxResponseTimeMs()} returns 30_000 ms.
+     */
+    private static final String LYTICS_GET_MAX_RESPONSE_TIME_MS_KEY = "lytics.api.get.max.response.time.ms";
 
     private static final String CONFIG_FILE = "config.properties";
+
+    private static final long DEFAULT_GET_MAX_RESPONSE_TIME_MS = 30_000L;
 
     private static volatile Properties cachedProps;
 
@@ -70,6 +77,34 @@ public final class TestConfig {
     /** CS API version header value (e.g. {@code 1}). */
     public static String lyticsApiVersion() {
         return requireProperty(LYTICS_API_VERSION_KEY);
+    }
+
+    /**
+     * Maximum acceptable round-trip time in milliseconds for GET /projects in response-time tests.
+     * Configure with {@code lytics.api.get.max.response.time.ms} in {@code config.properties} or {@code -D} override.
+     */
+    public static long lyticsGetMaxResponseTimeMs() {
+        String fromSys = System.getProperty(LYTICS_GET_MAX_RESPONSE_TIME_MS_KEY);
+        String raw =
+                (fromSys != null && !fromSys.isBlank())
+                        ? fromSys.trim()
+                        : Optional.ofNullable(properties().getProperty(LYTICS_GET_MAX_RESPONSE_TIME_MS_KEY))
+                                .map(String::trim)
+                                .filter(s -> !s.isBlank())
+                                .orElse(null);
+        if (raw == null) {
+            return DEFAULT_GET_MAX_RESPONSE_TIME_MS;
+        }
+        try {
+            long v = Long.parseLong(raw);
+            if (v <= 0) {
+                throw new IllegalStateException(
+                        LYTICS_GET_MAX_RESPONSE_TIME_MS_KEY + " must be positive, got: " + raw);
+            }
+            return v;
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Invalid " + LYTICS_GET_MAX_RESPONSE_TIME_MS_KEY + ": " + raw, e);
+        }
     }
 
     private static String requireProperty(String key) {

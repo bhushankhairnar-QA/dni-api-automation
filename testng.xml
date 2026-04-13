@@ -11,4 +11,10 @@
             <class name="com.dni.apitest.specs.LyticsProjectApiTest"/>
         </classes>
     </test>
+
+    <test name="Lytics Projects GET API">
+        <classes>
+            <class name="com.dni.apitest.specs.LyticsProjectsGetApiTest"/>
+        </classes>
+    </test>
 </suite>

@@ -1,6 +1,6 @@
 package com.dni.apitest.specs;
 
-import com.dni.apitest.base.LyticsBaseApiTest;
+import com.dni.apitest.base.BaseApiTest;
 import com.dni.apitest.config.TestConfig;
 import com.dni.apitest.constants.ApiPaths;
 import com.dni.apitest.testdata.LyticsProjectTestData;
@@ -20,7 +20,7 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class LyticsProjectApiTest extends LyticsBaseApiTest {
+public class ProjectPostApiTest extends BaseApiTest {
 
     @Test(
             priority = 1,

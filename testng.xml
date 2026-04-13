@@ -8,13 +8,13 @@
 
     <test name="Lytics Projects API">
         <classes>
-            <class name="com.dni.apitest.specs.LyticsProjectApiTest"/>
+            <class name="com.dni.apitest.specs.ProjectPostApiTest"/>
         </classes>
     </test>
 
     <test name="Lytics Projects GET API">
         <classes>
-            <class name="com.dni.apitest.specs.LyticsProjectsGetApiTest"/>
+            <class name="com.dni.apitest.specs.ProjectsGetApiTest"/>
         </classes>
     </test>
 </suite>

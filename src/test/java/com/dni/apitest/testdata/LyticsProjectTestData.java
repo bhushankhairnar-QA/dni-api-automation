@@ -15,17 +15,17 @@ public final class LyticsProjectTestData {
     // Connection IDs — test organisation
     // =========================================================================
 
-    public static final String STACK_API_KEY = "bltfc558aa1c06a6869";
-    public static final String LAUNCH_PROJECT_UID = "69724ef190419e263e1fcd03";
-    public static final String PERSONALIZE_PROJECT_UID = "69c0e3f34dfc30183b4e6a96";
+    public static final String STACK_API_KEY = "blt2b796f7cdc633a17";
+    public static final String LAUNCH_PROJECT_UID = "69de1e7a2ef36f3906b6a28d";
+    public static final String PERSONALIZE_PROJECT_UID = "69dde1f57ee4e10b08fe9b6f";
 
     /**
      * Alternate valid connection IDs for the same test organisation — used on PUT to replace the
      * default triple ({@link #STACK_API_KEY}, {@link #LAUNCH_PROJECT_UID}, {@link #PERSONALIZE_PROJECT_UID}).
      */
-    public static final String STACK_API_KEY_AFTER_PUT_UPDATE = "bltf6c2c8bb3ba4dc0d";
-    public static final String LAUNCH_PROJECT_UID_AFTER_PUT_UPDATE = "69d4e3089525914768617eda";
-    public static final String PERSONALIZE_PROJECT_UID_AFTER_PUT_UPDATE = "69ccf4dd1e9759b0e7bed5a1";
+    public static final String STACK_API_KEY_AFTER_PUT_UPDATE = "blt7b18bdbde77f9ca0";
+    public static final String LAUNCH_PROJECT_UID_AFTER_PUT_UPDATE = "69de1eab80a6911eeb3a7926";
+    public static final String PERSONALIZE_PROJECT_UID_AFTER_PUT_UPDATE = "69dde20d7ee4e10b08fe9b7d";
 
     // =========================================================================
     // Connection IDs — different organisation (negative tests)

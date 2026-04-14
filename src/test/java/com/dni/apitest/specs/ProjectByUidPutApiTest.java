@@ -1467,4 +1467,614 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
 
     }
 
+    @Test(
+        priority = 18,
+        description =
+            "POST /projects (name/domain/description, no connections), then PUT /projects/{uid} with "
+                + "whitespace-only name — expect 400 Bad request and lytics.PROJECTS.NOT_EMPTY on errors.name[0]"
+    )
+    public void TC_PUT_BY_UID_018_POST_without_connections_then_PUT_space_only_name_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String suffix = UUID.randomUUID().toString();
+        String projectName = "DNI Test " + suffix;
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + JSON (name, domain, description; connections key absent); "
+                + "When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        assertThat(postResponse.getStatusCode())
+            .as("POST /projects without connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                LyticsProjectTestData.SPACE_ONLY_PROJECT_NAME,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body same shape as POST (no connections) with name containing only whitespace; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request envelope and single NOT_EMPTY on errors.name (whitespace-only name rejected)"
+        );
+        assertThat(putResponse.getStatusCode()).isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+        assertThat(putResponse.jsonPath().getList("errors.name")).hasSize(1);
+        assertThat(putResponse.jsonPath().getString("errors.name[0].code"))
+            .isEqualTo("lytics.PROJECTS.NOT_EMPTY");
+    }
+
+    @Test(
+        priority = 19,
+        description =
+            "POST /projects then PUT /projects/{uid} with name exactly 200 characters — expect 200/204; "
+                + "GET /projects/{uid} — assert name matches the 200-character value sent on PUT"
+    )
+    public void TC_PUT_BY_UID_019_POST_then_PUT_name_exactly_200_chars_expect_success_verify_name() {
+        reportStep("Reset cleanup uid so this run does not delete an unrelated project");
+        projectUidToCleanup = null;
+
+        String suffix = UUID.randomUUID().toString();
+        String initialName = "DNI Test " + suffix;
+
+        String maxNamePrefix = "DNI PUT MAX " + suffix + " ";
+        assertThat(maxNamePrefix.length())
+            .as("Prefix for max-length name must fit within API max so padding can reach exactly 200")
+            .isLessThanOrEqualTo(LyticsProjectTestData.PROJECT_NAME_MAX_LENGTH);
+        String updatedName =
+            maxNamePrefix
+                + "Y".repeat(LyticsProjectTestData.PROJECT_NAME_MAX_LENGTH - maxNamePrefix.length());
+
+        reportStep("Precondition: updated name is exactly PROJECT_NAME_MAX_LENGTH characters");
+        assertThat(updatedName.length()).isEqualTo(LyticsProjectTestData.PROJECT_NAME_MAX_LENGTH);
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                initialName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body; When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                updatedName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body with name exactly 200 characters; When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} with max-length name must succeed (200 OK or 204 No Content)")
+            .isIn(200, 204);
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT")
+            .isEqualTo(200);
+
+        reportStep("Assert GET name matches the 200-character string sent on PUT");
+        assertThat(getResponse.jsonPath().getString("name"))
+            .as("Project name after PUT at max length")
+            .isEqualTo(updatedName);
+    }
+
+    @Test(
+        priority = 20,
+        description =
+            "POST /projects (no connections), then PUT /projects/{uid} with invalid domain format (abc) — "
+                + "expect 400 Bad request and lytics.PROJECTS.INVALID_DOMAIN on errors.domain[0]"
+    )
+    public void TC_PUT_BY_UID_020_POST_without_connections_then_PUT_invalid_domain_format_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String suffix = UUID.randomUUID().toString();
+        String projectName = "DNI Test " + suffix;
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + JSON (name, domain, description; connections absent); "
+                + "When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        assertThat(postResponse.getStatusCode())
+            .as("POST /projects without connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.INVALID_DOMAIN_FORMAT_ABC,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body same shape as POST with domain = invalid format \"abc\"; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request envelope and single INVALID_DOMAIN on errors.domain (same shape as POST TC_020)"
+        );
+        assertThat(putResponse.getStatusCode()).isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+        assertThat(putResponse.jsonPath().getList("errors.domain")).hasSize(1);
+        assertThat(putResponse.jsonPath().getString("errors.domain[0].code"))
+            .isEqualTo("lytics.PROJECTS.INVALID_DOMAIN");
+    }
+
+    @Test(
+        priority = 21,
+        description =
+            "POST /projects (no connections), then PUT /projects/{uid} with empty string domain — "
+                + "expect 400 Bad request; errors.domain includes INVALID_DOMAIN and NOT_EMPTY (same shape as POST TC_016)"
+    )
+    public void TC_PUT_BY_UID_021_POST_without_connections_then_PUT_empty_domain_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String suffix = UUID.randomUUID().toString();
+        String projectName = "DNI Test " + suffix;
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + JSON (name, domain, description; connections absent); "
+                + "When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        assertThat(postResponse.getStatusCode())
+            .as("POST /projects without connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.EMPTY_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body same shape as POST with domain = empty string; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request; errors.domain has INVALID_DOMAIN and NOT_EMPTY (order-independent)"
+        );
+        assertThat(putResponse.getStatusCode()).isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+
+        List<Map<String, Object>> domainErrors = putResponse.jsonPath().getList("errors.domain");
+        assertThat(domainErrors).hasSize(2);
+        assertThat(domainErrors)
+            .extracting(m -> m.get("code"))
+            .containsExactlyInAnyOrder(
+                "lytics.PROJECTS.INVALID_DOMAIN",
+                "lytics.PROJECTS.NOT_EMPTY");
+    }
+
+    @Test(
+        priority = 22,
+        description =
+            "POST /projects with non-empty description, then PUT /projects/{uid} with description = empty string — "
+                + "expect HTTP 200; GET — assert description is \"\" (same acceptance as POST TC_036)"
+    )
+    public void TC_PUT_BY_UID_022_POST_then_PUT_empty_description_expect_200_verify_description() {
+        reportStep("Reset cleanup uid so this run does not delete an unrelated project");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI Test empty desc " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body (non-empty description); "
+                + "When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.EMPTY_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: same name/domain/connections with description cleared to empty string; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} clearing description must return 200 OK")
+            .isEqualTo(200);
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT")
+            .isEqualTo(200);
+
+        reportStep("Assert GET description matches empty string sent on PUT");
+        assertThat(getResponse.jsonPath().getString("description"))
+            .as("Updated project description")
+            .isEqualTo(LyticsProjectTestData.EMPTY_DESCRIPTION);
+    }
+
+    @Test(
+        priority = 23,
+        description =
+            "POST /projects then PUT /projects/{uid} with description longer than 255 characters — "
+                + "expect 400 Bad request; errors.description[0] MAX_CHAR_LIMIT with maxCharacters 255 (POST TC_039 shape)"
+    )
+    public void TC_PUT_BY_UID_023_POST_then_PUT_description_over_255_chars_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        reportStep("Precondition: over-max description string is exactly max+1 characters");
+        assertThat(LyticsProjectTestData.DESCRIPTION_ONE_OVER_MAX_LENGTH.length())
+            .isEqualTo(LyticsProjectTestData.PROJECT_DESCRIPTION_MAX_LENGTH + 1);
+
+        String projectName = "DNI Test desc over " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body; When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.DESCRIPTION_ONE_OVER_MAX_LENGTH
+            );
+
+        reportStep(
+            "Given: PUT body with description length max+1; When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request; errors.description has MAX_CHAR_LIMIT and maxCharacters = 255"
+        );
+        assertThat(putResponse.getStatusCode()).isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+
+        List<Map<String, Object>> descriptionErrors = putResponse.jsonPath().getList("errors.description");
+        assertThat(descriptionErrors).hasSize(1);
+
+        Map<String, Object> descriptionError = descriptionErrors.get(0);
+        assertThat(descriptionError.get("code")).isEqualTo("lytics.PROJECTS.MAX_CHAR_LIMIT");
+        assertThat(((Number) Objects.requireNonNull(descriptionError.get("maxCharacters"))).intValue())
+            .isEqualTo(LyticsProjectTestData.PROJECT_DESCRIPTION_MAX_LENGTH);
+    }
+
 }

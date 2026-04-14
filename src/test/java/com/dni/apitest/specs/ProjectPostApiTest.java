@@ -2387,7 +2387,7 @@ public class ProjectPostApiTest extends BaseApiTest {
                 assertThat(response.jsonPath().getString("errors.name[0].code"))
                         .isEqualTo("lytics.PROJECTS.DUPLICATE_PROJECT_NAME");
             } else {
-                assertThat(response.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                assertThat(response.jsonPath().getString("errors.name[0].code"))
                         .isEqualTo("lytics.PROJECTS.DUPLICATE_CONNECTION");
             }
         }

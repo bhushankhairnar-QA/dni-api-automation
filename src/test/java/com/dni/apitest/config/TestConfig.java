@@ -16,6 +16,11 @@ public final class TestConfig {
     /** Well-formed organization UID that must not exist (negative tests). */
     private static final String LYTICS_ORG_UID_NONEXISTING_KEY = "lytics.organization.uid.nonexisting";
     private static final String LYTICS_AUTH_TOKEN_KEY = "lytics.auth.token";
+    /**
+     * Optional user UID sent as {@code x-user-uid} on requests that need it (e.g. POST before a negative PUT that
+     * omits the header).
+     */
+    private static final String LYTICS_USER_UID_KEY = "lytics.user.uid";
     /** Optional; used by tests that need a token the API treats as expired. */
     private static final String LYTICS_EXPIRED_AUTH_TOKEN_KEY = "lytics.auth.token.expired";
 
@@ -56,6 +61,22 @@ public final class TestConfig {
 
     public static String lyticsAuthToken() {
         return requireProperty(LYTICS_AUTH_TOKEN_KEY);
+    }
+
+    /**
+     * Optional Lytics user UID for the {@code x-user-uid} header. Set {@code lytics.user.uid} in {@code config.properties}
+     * or {@code -Dlytics.user.uid=} when an environment requires it on create but must omit it on a negative PUT test.
+     */
+    public static Optional<String> lyticsUserUid() {
+        String fromSys = System.getProperty(LYTICS_USER_UID_KEY);
+        if (fromSys != null && !fromSys.isBlank()) {
+            return Optional.of(fromSys.trim());
+        }
+        String fromFile = properties().getProperty(LYTICS_USER_UID_KEY);
+        if (fromFile != null && !fromFile.isBlank()) {
+            return Optional.of(fromFile.trim());
+        }
+        return Optional.empty();
     }
 
     /**

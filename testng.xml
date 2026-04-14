@@ -2,18 +2,13 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="DNI API Test Suite" verbose="1">
 
-    <listeners>
-        <listener class-name="com.dni.apitest.listeners.ExtentTestNgListener"/>
-    </listeners>
-
-
     <test name="Lytics Projects POST API">
         <classes>
             <class name="com.dni.apitest.specs.ProjectPostApiTest"/>
         </classes>
     </test>
 
-   <test name="Lytics Projects GET API">
+    <test name="Lytics Projects GET API">
         <classes>
             <class name="com.dni.apitest.specs.ProjectsGetApiTest"/>
         </classes>

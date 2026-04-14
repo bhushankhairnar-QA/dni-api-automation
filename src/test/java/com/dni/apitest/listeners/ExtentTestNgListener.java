@@ -16,12 +16,9 @@ import org.testng.ITestResult;
  * and maps pass / fail / skip to Extent statuses.  Network failures are tagged with the
  * "Connectivity" category so they stand out from genuine API assertion failures.
  *
- * <p>Register in {@code testng.xml}:
- * <pre>
- * &lt;listeners&gt;
- *   &lt;listener class-name="com.dni.apitest.listeners.ExtentTestNgListener"/&gt;
- * &lt;/listeners&gt;
- * </pre>
+ * <p>Registered on {@link com.dni.apitest.base.BaseApiTest} via {@code @Listeners} so Extent runs
+ * when a spec is executed from the IDE without {@code testng.xml}. You can still add the same
+ * listener in {@code testng.xml} only if you remove the annotation, to avoid duplicate events.
  */
 public final class ExtentTestNgListener implements ITestListener, ISuiteListener {
 

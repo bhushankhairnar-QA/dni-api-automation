@@ -2,6 +2,7 @@ package com.dni.apitest.base;
 
 import com.dni.apitest.config.TestConfig;
 import com.dni.apitest.http.LyticsProjectApiClient;
+import com.dni.apitest.listeners.ExtentTestNgListener;
 import com.dni.apitest.report.ReportSteps;
 import io.restassured.RestAssured;
 import io.restassured.builder.RequestSpecBuilder;
@@ -13,6 +14,7 @@ import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.ResponseSpecification;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Listeners;
 
 /**
  * Base class for Lytics API tests.
@@ -20,7 +22,11 @@ import org.testng.annotations.BeforeClass;
  * <p>Configures REST Assured with the Lytics base URI and required auth headers, then exposes
  * a shared {@link LyticsProjectApiClient} for use in test methods.  Automatic project cleanup
  * via {@link #cleanupLyticsProject()} runs after every test method.
+ *
+ * <p>{@link ExtentTestNgListener} is registered here (not only in {@code testng.xml}) so Extent
+ * Reports still initialise and flush when a spec class is executed alone from the IDE.
  */
+@Listeners(ExtentTestNgListener.class)
 public abstract class BaseApiTest {
 
     /** Pre-built request spec carrying base URI + Lytics auth headers. */

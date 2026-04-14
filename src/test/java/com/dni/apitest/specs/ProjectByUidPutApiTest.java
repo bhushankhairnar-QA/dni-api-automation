@@ -14,12 +14,7 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * PUT /projects/{uid} — update flow aligned with manual curls:
- *
- * <p>POST {@code /projects} then PUT with the same shape; each test varies one field. After GET
- * {@code /projects/{uid}}, assertions are limited to the field under test (name or domain only).
- */
+
 public class ProjectByUidPutApiTest extends BaseApiTest {
 
    @Test(
@@ -247,4 +242,113 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
         .as("Updated project domain")
         .isEqualTo(updatedDomain);
 }
+
+    @Test(
+        priority = 3,
+        description = "POST /projects (curl-shaped body) then PUT with updated description only "
+            + "(same name/domain/connections) — given/when/then; GET — assert only description"
+    )
+    public void TC_PUT_BY_UID_003_POST_then_PUT_valid_request_update_description_only() {
+        reportStep("Reset cleanup uid so this run does not delete an unrelated project");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI Test desc " + UUID.randomUUID();
+        String initialDescription = LyticsProjectTestData.VALID_DESCRIPTION;
+        String updatedDescription = LyticsProjectTestData.SAMPLE_PROJECT_DESCRIPTION;
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                initialDescription
+            );
+
+        // -------------------- POST: Create Project --------------------
+        reportStep(
+            "Given: Lytics headers + JSON body with initial description; "
+                + "When: POST " + ApiPaths.PROJECTS + "; "
+                + "Then: extract response"
+        );
+
+        Response postResponse = given()
+            .spec(lyticsRequestSpec)
+            .body(postBody)
+            .when()
+            .post(ApiPaths.PROJECTS)
+            .then()
+            .extract()
+            .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        assertThat(postResponse.getStatusCode())
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+
+        reportStep("Register uid for DELETE cleanup before PUT so a failed PUT does not strand the project");
+        projectUidToCleanup = projectUid;
+
+        // -------------------- PUT: Update Project Description --------------------
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                updatedDescription
+            );
+
+        reportStep(
+            "Given: same headers + JSON body as POST curl with updated description only; "
+                + "When: PUT " + ApiPaths.projectByUid(projectUid) + "; "
+                + "Then: extract response"
+        );
+
+        Response putResponse = given()
+            .spec(lyticsRequestSpec)
+            .body(putBody)
+            .when()
+            .put(ApiPaths.projectByUid(projectUid))
+            .then()
+            .extract()
+            .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} valid full-body update (description changed)")
+            .isIn(200, 204);
+
+        // -------------------- GET: Verify Update --------------------
+        reportStep(
+            "Given: Lytics headers; "
+                + "When: GET " + ApiPaths.projectByUid(projectUid) + "; "
+                + "Then: extract response"
+        );
+
+        Response getResponse = given()
+            .spec(lyticsRequestSpec)
+            .when()
+            .get(ApiPaths.projectByUid(projectUid))
+            .then()
+            .extract()
+            .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT")
+            .isEqualTo(200);
+
+        // -------------------- Assert Updated Description --------------------
+        reportStep("Assert only description on GET response matches the value sent on PUT");
+
+        assertThat(getResponse.jsonPath().getString("description"))
+            .as("Updated project description")
+            .isEqualTo(updatedDescription);
+    }
 }

@@ -351,4 +351,160 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
             .as("Updated project description")
             .isEqualTo(updatedDescription);
     }
+
+    @Test(
+        priority = 4,
+        description = "POST /projects with default connections (curl-shaped) then PUT with updated "
+            + "stackApiKeys, launchProjectUids, personalizeProjectUids — same name/domain/description; "
+            + "GET — assert connections match PUT payload"
+    )
+    public void TC_PUT_BY_UID_004_POST_then_PUT_valid_request_updating_connections() {
+        reportStep("Reset cleanup uid so this run does not delete an unrelated project");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI Test " + UUID.randomUUID();
+        String domain = LyticsProjectTestData.VALID_DOMAIN;
+        String description = LyticsProjectTestData.VALID_DESCRIPTION;
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                domain,
+                description,
+                LyticsProjectPayloadBuilder.defaultConnections()
+            );
+
+        reportStep(
+            "Given: Lytics headers + JSON body matching POST curl (name, domain, desc, default connections); "
+                + "When: POST " + ApiPaths.PROJECTS + "; "
+                + "Then: extract response"
+        );
+
+        Response postResponse = given()
+            .spec(lyticsRequestSpec)
+            .body(postBody)
+            .when()
+            .post(ApiPaths.PROJECTS)
+            .then()
+            .extract()
+            .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    postResponse.jsonPath().getString("errors['connections.launchProjectUids'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    postResponse.jsonPath().getString(
+                        "errors['connections.personalizeProjectUids'][0].code")))) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: a connection ID is already linked to another "
+                    + "project in this org. Free the connection or use a different environment."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+
+        reportStep("Register uid for DELETE cleanup before PUT so a failed PUT does not strand the project");
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                domain,
+                description,
+                LyticsProjectPayloadBuilder.connectionsAfterPutUpdate()
+            );
+
+        reportStep(
+            "Given: same name/domain/description as POST; connections match PUT curl (alternate stack, "
+                + "launch, personalize); "
+                + "When: PUT " + ApiPaths.projectByUid(projectUid) + "; "
+                + "Then: extract response"
+        );
+
+        Response putResponse = given()
+            .spec(lyticsRequestSpec)
+            .body(putBody)
+            .when()
+            .put(ApiPaths.projectByUid(projectUid))
+            .then()
+            .extract()
+            .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 400
+            && ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.launchProjectUids'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString(
+                        "errors['connections.personalizeProjectUids'][0].code")))) {
+            throw new SkipException(
+                "PUT returned DUPLICATE_CONNECTION: an alternate connection ID is already linked "
+                    + "to another project. Free those connections or refresh "
+                    + "LyticsProjectTestData alternate PUT constants."
+            );
+        }
+
+        assertThat(putStatus)
+            .as("PUT /projects/{uid} valid full-body update (connections changed)")
+            .isIn(200, 204);
+
+        reportStep(
+            "Given: Lytics headers; "
+                + "When: GET " + ApiPaths.projectByUid(projectUid) + "; "
+                + "Then: extract response"
+        );
+
+        Response getResponse = given()
+            .spec(lyticsRequestSpec)
+            .when()
+            .get(ApiPaths.projectByUid(projectUid))
+            .then()
+            .extract()
+            .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT")
+            .isEqualTo(200);
+
+        reportStep("Assert name, domain, description unchanged; connections match PUT payload");
+
+        assertThat(getResponse.jsonPath().getString("name"))
+            .as("Project name unchanged after connections-only PUT")
+            .isEqualTo(projectName);
+        assertThat(getResponse.jsonPath().getString("domain"))
+            .as("Project domain unchanged after connections-only PUT")
+            .isEqualTo(domain);
+        assertThat(getResponse.jsonPath().getString("description"))
+            .as("Project description unchanged after connections-only PUT")
+            .isEqualTo(description);
+
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .as("GET connections.stackApiKeys must match PUT body")
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY_AFTER_PUT_UPDATE);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .as("GET connections.launchProjectUids must match PUT body")
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID_AFTER_PUT_UPDATE);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .as("GET connections.personalizeProjectUids must match PUT body")
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID_AFTER_PUT_UPDATE);
+    }
 }

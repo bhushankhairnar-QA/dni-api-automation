@@ -19,6 +19,14 @@ public final class LyticsProjectTestData {
     public static final String LAUNCH_PROJECT_UID = "69724ef190419e263e1fcd03";
     public static final String PERSONALIZE_PROJECT_UID = "69c0e3f34dfc30183b4e6a96";
 
+    /**
+     * Alternate valid connection IDs for the same test organisation — used on PUT to replace the
+     * default triple ({@link #STACK_API_KEY}, {@link #LAUNCH_PROJECT_UID}, {@link #PERSONALIZE_PROJECT_UID}).
+     */
+    public static final String STACK_API_KEY_AFTER_PUT_UPDATE = "bltf6c2c8bb3ba4dc0d";
+    public static final String LAUNCH_PROJECT_UID_AFTER_PUT_UPDATE = "69d4e3089525914768617eda";
+    public static final String PERSONALIZE_PROJECT_UID_AFTER_PUT_UPDATE = "69ccf4dd1e9759b0e7bed5a1";
+
     // =========================================================================
     // Connection IDs — different organisation (negative tests)
     // =========================================================================

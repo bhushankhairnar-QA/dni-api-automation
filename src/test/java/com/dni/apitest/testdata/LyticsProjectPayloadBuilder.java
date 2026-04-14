@@ -39,6 +39,19 @@ public final class LyticsProjectPayloadBuilder {
         return c;
     }
 
+    /**
+     * All three connection types populated with {@link LyticsProjectTestData#STACK_API_KEY_AFTER_PUT_UPDATE},
+     * {@link LyticsProjectTestData#LAUNCH_PROJECT_UID_AFTER_PUT_UPDATE}, and
+     * {@link LyticsProjectTestData#PERSONALIZE_PROJECT_UID_AFTER_PUT_UPDATE}.
+     */
+    public static Map<String, Object> connectionsAfterPutUpdate() {
+        Map<String, Object> c = new HashMap<>();
+        c.put("stackApiKeys", Arrays.asList(STACK_API_KEY_AFTER_PUT_UPDATE));
+        c.put("launchProjectUids", Arrays.asList(LAUNCH_PROJECT_UID_AFTER_PUT_UPDATE));
+        c.put("personalizeProjectUids", Arrays.asList(PERSONALIZE_PROJECT_UID_AFTER_PUT_UPDATE));
+        return c;
+    }
+
     /** All three connection types populated with IDs from a different organisation. */
     public static Map<String, Object> connectionsBelongingToDifferentOrganization() {
         Map<String, Object> c = new HashMap<>();
@@ -208,11 +221,21 @@ public final class LyticsProjectPayloadBuilder {
     /** Valid payload with custom {@code name}, {@code domain}, and {@code description}. */
     public static Map<String, Object> validFullProjectCreatePayloadWithNameDomainAndDescription(
             String name, String domain, String description) {
+        return validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                name, domain, description, defaultConnections());
+    }
+
+    /**
+     * Valid full-body payload with custom {@code name}, {@code domain}, {@code description}, and
+     * {@code connections} (used for POST/PUT when connection sets differ from {@link #defaultConnections()}).
+     */
+    public static Map<String, Object> validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+            String name, String domain, String description, Map<String, Object> connections) {
         Map<String, Object> body = new HashMap<>();
         body.put("name", name);
         body.put("domain", domain);
         body.put("description", description);
-        body.put("connections", defaultConnections());
+        body.put("connections", connections);
         return body;
     }
 

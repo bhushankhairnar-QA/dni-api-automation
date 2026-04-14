@@ -12,7 +12,9 @@ import io.restassured.specification.RequestSpecification;
 import org.testng.SkipException;
 import org.testng.annotations.Test;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -816,6 +818,653 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
             .isEqualTo("You're not allowed in here unless you're logged in.");
         assertThat(response.jsonPath().getInt("error_code")).isEqualTo(105);
         assertThat(response.jsonPath().getString("errors.authtoken[0]")).isEqualTo("is not valid.");
+    }
+
+    @Test(
+        priority = 9,
+        description =
+            "PUT /projects/{uid} with invalid authtoken header — curl-shaped body; "
+                + "expect 401 with error_message, error_code 105, errors.authtoken"
+    )
+    public void TC_PUT_BY_UID_009_Send_PUT_request_with_invalid_authtoken_header() {
+        reportStep("Reset cleanup uid; invalid token must not update a project");
+        projectUidToCleanup = null;
+
+        String pathUid = "69dc794d3456t27a58e1956f";
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                "DNI Test",
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: x-cs-api-version, organization_uid, authtoken set to a non-valid value, JSON body; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(pathUid)
+                + "; "
+                + "Then: extract response"
+        );
+
+        Response response =
+            given()
+                .baseUri(TestConfig.lyticsBaseUri())
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .header("x-cs-api-version", TestConfig.lyticsApiVersion())
+                .header("organization_uid", TestConfig.lyticsOrganizationUid())
+                .header("authtoken", "invalid-authtoken-" + UUID.randomUUID())
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(pathUid))
+                .then()
+                .extract()
+                .response();
+
+        response.prettyPrint();
+        reportResponseBody(response);
+
+        reportStep("Assert 401 Unauthorized and authtoken validation body");
+        assertThat(response.getStatusCode()).isEqualTo(401);
+        assertThat(response.jsonPath().getString("error_message"))
+            .isEqualTo("You're not allowed in here unless you're logged in.");
+        assertThat(response.jsonPath().getInt("error_code")).isEqualTo(105);
+        assertThat(response.jsonPath().getString("errors.authtoken[0]")).isEqualTo("is not valid.");
+    }
+
+    @Test(
+        priority = 10,
+        description =
+            "PUT /projects/{uid} with expired authtoken header — curl-shaped body; "
+                + "expect 401 with error_message, error_code 105, errors.authtoken"
+    )
+    public void TC_PUT_BY_UID_010_Send_PUT_request_with_expired_authtoken_header() {
+        Optional<String> expiredToken = TestConfig.lyticsExpiredAuthToken();
+        if (expiredToken.isEmpty()) {
+            throw new SkipException(
+                "Set lytics.auth.token.expired in config.properties or -Dlytics.auth.token.expired=... to run this"
+                    + " test"
+            );
+        }
+
+        reportStep("Reset cleanup uid; expired token must not update a project");
+        projectUidToCleanup = null;
+
+        String pathUid = "69dc794d3456t27a58e1956f";
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                "DNI Test",
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: x-cs-api-version, organization_uid, authtoken from lytics.auth.token.expired, JSON body; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(pathUid)
+                + "; "
+                + "Then: extract response"
+        );
+
+        Response response =
+            given()
+                .baseUri(TestConfig.lyticsBaseUri())
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .header("x-cs-api-version", TestConfig.lyticsApiVersion())
+                .header("organization_uid", TestConfig.lyticsOrganizationUid())
+                .header("authtoken", expiredToken.get())
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(pathUid))
+                .then()
+                .extract()
+                .response();
+
+        response.prettyPrint();
+        reportResponseBody(response);
+
+        reportStep("Assert 401 Unauthorized and authtoken validation body");
+        assertThat(response.getStatusCode()).isEqualTo(401);
+        assertThat(response.jsonPath().getString("error_message"))
+            .isEqualTo("You're not allowed in here unless you're logged in.");
+        assertThat(response.jsonPath().getInt("error_code")).isEqualTo(105);
+        assertThat(response.jsonPath().getString("errors.authtoken[0]")).isEqualTo("is not valid.");
+    }
+
+    @Test(
+        priority = 11,
+        description =
+            "PUT /projects/{uid} without organization_uid header — curl-shaped JSON body; "
+                + "expect 400 with message, status, error for missing organization_uid"
+    )
+    public void TC_PUT_BY_UID_011_Send_PUT_request_without_organization_uid_header() {
+        reportStep("Reset cleanup uid; missing organization must not update a project");
+        projectUidToCleanup = null;
+
+        String pathUid = "69dc794d3456t27a58e1956f";
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                "DNI Test",
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: x-cs-api-version, authtoken, JSON body (no organization_uid), same path as manual curl; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(pathUid)
+                + "; "
+                + "Then: extract response"
+        );
+
+        Response response =
+            given()
+                .baseUri(TestConfig.lyticsBaseUri())
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .header("x-cs-api-version", TestConfig.lyticsApiVersion())
+                .header("authtoken", TestConfig.lyticsAuthToken())
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(pathUid))
+                .then()
+                .extract()
+                .response();
+
+        response.prettyPrint();
+        reportResponseBody(response);
+
+        reportStep("Assert 400 Bad Request and envelope for missing organization_uid header");
+        assertThat(response.getStatusCode()).isEqualTo(400);
+        assertThat(response.jsonPath().getString("message"))
+            .isEqualTo("Missing required header: organization_uid");
+        assertThat(response.jsonPath().getInt("status")).isEqualTo(400);
+        assertThat(response.jsonPath().getString("error")).isEqualTo("Bad Request");
+    }
+
+    @Test(
+        priority = 12,
+        description =
+            "PUT /projects/{uid} with invalid project UID (wrong format, e.g. alphanumeric segment) — "
+                + "curl-shaped body; expect 404 Not Found; message Project not found"
+    )
+    public void TC_PUT_BY_UID_012_Send_PUT_request_with_invalid_project_uid_wrong_format() {
+        reportStep("Reset cleanup uid; PUT must not target a real project");
+        projectUidToCleanup = null;
+
+        String invalidPathUid = "test3383782";
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                "DNI Test",
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: Lytics headers + JSON body (name/domain/description) matching manual curl; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(invalidPathUid)
+                + " (non-UID path segment); "
+                + "Then: extract response"
+        );
+
+        Response response =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(invalidPathUid))
+                .then()
+                .extract()
+                .response();
+
+        response.prettyPrint();
+        reportResponseBody(response);
+
+        reportStep("Assert HTTP 404 and Project not found envelope");
+        ProjectAssertions.assertProjectNotFound(response);
+    }
+
+    @Test(
+        priority = 13,
+        description =
+            "PUT /projects/{uid} with well-formed project UID that does not exist — curl-shaped body; "
+                + "expect 404 Not Found; message Project not found"
+    )
+    public void TC_PUT_BY_UID_013_Send_PUT_request_with_nonexisting_project_uid() {
+        reportStep("Reset cleanup uid; PUT must not update a missing project");
+        projectUidToCleanup = null;
+
+        String nonexistentHexUid = "deadbeefdeadbeefdeadbeef";
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                "DNI Test",
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: Lytics headers + JSON body (name/domain/description); "
+                + "When: PUT "
+                + ApiPaths.projectByUid(nonexistentHexUid)
+                + " (valid-format uid unlikely to exist); "
+                + "Then: extract response"
+        );
+
+        Response response =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(nonexistentHexUid))
+                .then()
+                .extract()
+                .response();
+
+        response.prettyPrint();
+        reportResponseBody(response);
+
+        reportStep("Assert HTTP 404 and Project not found envelope");
+        ProjectAssertions.assertProjectNotFound(response);
+    }
+
+    @Test(
+        priority = 14,
+        description =
+            "PUT /projects/{uid} with empty project UID in path (/projects/) — curl-shaped JSON body; "
+                + "expect 400 Bad Request; message names missing x-project-uid header"
+    )
+    public void TC_PUT_BY_UID_014_Send_PUT_request_with_empty_project_uid_in_path() {
+        reportStep("Reset cleanup uid; empty path uid must not update a project");
+        projectUidToCleanup = null;
+
+        String emptyPathUid = "";
+        String path = ApiPaths.projectByUid(emptyPathUid);
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                "DNI Test",
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: Lytics headers + JSON body (name/domain/description); "
+                + "When: PUT "
+                + path
+                + " (empty uid segment); "
+                + "Then: extract response"
+        );
+
+        Response response =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(path)
+                .then()
+                .extract()
+                .response();
+
+        response.prettyPrint();
+        reportResponseBody(response);
+
+        reportStep("Assert 400 and envelope for missing project identification (x-project-uid)");
+        assertThat(response.getStatusCode()).isEqualTo(400);
+        assertThat(response.jsonPath().getString("message"))
+            .isEqualTo("Missing required header: x-project-uid");
+        assertThat(response.jsonPath().getInt("status")).isEqualTo(400);
+        assertThat(response.jsonPath().getString("error")).isEqualTo("Bad Request");
+    }
+
+    @Test(
+        priority = 15,
+        description =
+            "POST /projects (name/domain/description, no connections) in default org, then PUT /projects/{uid} with a "
+                + "different organization_uid (cross.put or nonexisting) — expect 404 Project not found; cleanup DELETE"
+    )
+    public void TC_PUT_BY_UID_015_POST_then_PUT_with_different_organization_uid_expect_404() {
+        reportStep("Reset cleanup uid so this run does not delete an unrelated project");
+        projectUidToCleanup = null;
+
+        String suffix = UUID.randomUUID().toString();
+        String projectName = "DNI Test " + suffix;
+        String crossOrgUid = "bltabd665cea8d08fce";
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: default Lytics headers + JSON body (name/domain/description, connections key absent); "
+                + "When: POST "
+                + ApiPaths.PROJECTS
+                + "; "
+                + "Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+
+        assertThat(postStatus)
+            .as("POST /projects with curl-shaped body must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+
+        reportStep("Register uid for DELETE cleanup before cross-org PUT");
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                "DNI Test updated " + suffix,
+                "www.google.com",
+                "desc"
+            );
+
+        reportStep(
+            "Given: same base URI, version, authtoken, PUT body (name/domain/description, no connections); organization_uid set to a different org ("
+                + crossOrgUid
+                + "); "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; "
+                + "Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .baseUri(TestConfig.lyticsBaseUri())
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .header("x-cs-api-version", TestConfig.lyticsApiVersion())
+                .header("organization_uid", crossOrgUid)
+                .header("authtoken", TestConfig.lyticsAuthToken())
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep("Assert HTTP 404 and Project not found envelope (project not visible under the other organization)");
+        ProjectAssertions.assertProjectNotFound(putResponse);
+        //This is issue discuss with santosh and vedant it should be 404 Project not found
+    }
+
+    @Test(
+        priority = 16,
+        description =
+            "POST /projects twice with different names, then PUT /projects/{uid} for the second project using the "
+                + "first project's name — expect 400 Bad request and lytics.PROJECTS.DUPLICATE_PROJECT_NAME on errors.name"
+    )
+    public void TC_PUT_BY_UID_016_POST_POST_then_PUT_with_duplicate_name_expect_400() {
+        reportStep("Reset cleanup uid; both created projects are deleted in a finally block");
+        projectUidToCleanup = null;
+
+        String suffix = UUID.randomUUID().toString();
+        String firstProjectName = "DNI Test A " + suffix;
+        String secondProjectName = "DNI Test B " + suffix;
+        String domain = "www.google.com";
+        String description = "desc";
+
+        String firstUid = null;
+        String secondUid = null;
+        try {
+            Map<String, Object> firstPostBody =
+                LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                    firstProjectName,
+                    domain,
+                    description
+                );
+
+            reportStep(
+                "Given: Lytics headers + JSON (name A, domain, description, no connections); "
+                    + "When: POST "
+                    + ApiPaths.PROJECTS
+                    + "; Then: extract response"
+            );
+
+            Response firstPostResponse =
+                given()
+                    .spec(lyticsRequestSpec)
+                    .body(firstPostBody)
+                    .when()
+                    .post(ApiPaths.PROJECTS)
+                    .then()
+                    .extract()
+                    .response();
+
+            firstPostResponse.prettyPrint();
+            reportResponseBody(firstPostResponse);
+
+            assertThat(firstPostResponse.getStatusCode())
+                .as("First POST /projects must return 201 Created")
+                .isEqualTo(201);
+            firstUid = firstPostResponse.jsonPath().getString("uid");
+            assertThat(firstUid).isNotBlank();
+
+            Map<String, Object> secondPostBody =
+                LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                    secondProjectName,
+                    domain,
+                    description
+                );
+
+            reportStep(
+                "Given: same headers + JSON (name B, same domain/description, no connections); "
+                    + "When: POST "
+                    + ApiPaths.PROJECTS
+                    + "; Then: extract response"
+            );
+
+            Response secondPostResponse =
+                given()
+                    .spec(lyticsRequestSpec)
+                    .body(secondPostBody)
+                    .when()
+                    .post(ApiPaths.PROJECTS)
+                    .then()
+                    .extract()
+                    .response();
+
+            secondPostResponse.prettyPrint();
+            reportResponseBody(secondPostResponse);
+
+            assertThat(secondPostResponse.getStatusCode())
+                .as("Second POST /projects with a different name must return 201 Created")
+                .isEqualTo(201);
+            secondUid = secondPostResponse.jsonPath().getString("uid");
+            assertThat(secondUid).isNotBlank();
+
+            Map<String, Object> putBody =
+                LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                    firstProjectName,
+                    domain,
+                    description
+                );
+
+            reportStep(
+                "Given: PUT body uses the first project's name on the second project's uid (duplicate name in org); "
+                    + "When: PUT "
+                    + ApiPaths.projectByUid(secondUid)
+                    + "; Then: extract response"
+            );
+
+            Response putResponse =
+                given()
+                    .spec(lyticsRequestSpec)
+                    .body(putBody)
+                    .when()
+                    .put(ApiPaths.projectByUid(secondUid))
+                    .then()
+                    .extract()
+                    .response();
+
+            putResponse.prettyPrint();
+            reportResponseBody(putResponse);
+
+            reportStep(
+                "Assert HTTP 400, message Bad request, status 400, and DUPLICATE_PROJECT_NAME on errors.name[0]"
+            );
+            assertThat(putResponse.getStatusCode()).isEqualTo(400);
+            assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+            assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+            assertThat(putResponse.jsonPath().getList("errors.name")).hasSize(1);
+            assertThat(putResponse.jsonPath().getString("errors.name[0].code"))
+                .isEqualTo("lytics.PROJECTS.DUPLICATE_PROJECT_NAME");
+        } finally {
+            if (secondUid != null && !secondUid.isBlank()) {
+                try {
+                    projectApiClient.deleteProject(secondUid).then().statusCode(204);
+                } catch (Throwable e) {
+                    System.err.println(
+                        "[cleanup] DELETE /projects/" + secondUid + " failed (ignored): " + e.getMessage());
+                }
+            }
+            if (firstUid != null && !firstUid.isBlank()) {
+                try {
+                    projectApiClient.deleteProject(firstUid).then().statusCode(204);
+                } catch (Throwable e) {
+                    System.err.println(
+                        "[cleanup] DELETE /projects/" + firstUid + " failed (ignored): " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    @Test(
+        priority = 17,
+        description =
+            "POST /projects with a valid project, then PUT /projects/{uid} with JSON missing the `name` field — "
+                + "expect 400; name validation treats missing name as empty (same NOT_EMPTY signal as empty-string name)"
+    )
+    public void TC_PUT_BY_UID_017_POST_then_PUT_without_name_field_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String suffix = UUID.randomUUID().toString();
+        String projectName = "DNI Test " + suffix;
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body (name, domain, description, default connections); "
+                + "When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody = LyticsProjectPayloadBuilder.projectCreatePayloadWithoutName();
+
+        reportStep(
+            "Given: PUT body matches POST TC_002 shape (domain, description, connections; `name` key absent); "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request; errors.name includes NOT_EMPTY (missing name treated as name field empty \"\")"
+        );
+        assertThat(putResponse.getStatusCode()).isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+
+    List<Map<String, Object>> nameErrors = putResponse.jsonPath().getList("errors.name");
+        assertThat(nameErrors).hasSize(3);
+
+        assertThat(nameErrors)
+                .extracting(m -> m.get("code"))
+                .containsExactlyInAnyOrder(
+                        "lytics.PROJECTS.MAX_CHAR_LIMIT",
+                        "lytics.PROJECTS.NOT_EMPTY",
+                        "lytics.PROJECTS.NOT_STRING");
+
+        Map<String, Object> maxCharError =
+                nameErrors.stream()
+                        .filter(m -> "lytics.PROJECTS.MAX_CHAR_LIMIT".equals(m.get("code")))
+                        .findFirst()
+                        .orElseThrow();
+
+        assertThat(((Number) Objects.requireNonNull(maxCharError.get("maxCharacters"))).intValue())
+                .isEqualTo(LyticsProjectTestData.PROJECT_NAME_MAX_LENGTH);
+
     }
 
 }

@@ -1,6 +1,7 @@
 package com.dni.apitest.http;
 
 import com.dni.apitest.constants.ApiPaths;
+import com.dni.apitest.report.ExtentReportRequestFilter;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -109,6 +110,7 @@ public class LyticsProjectApiClient {
      */
     public Response createProjectWithHeaders(Map<String, Object> payload, Map<String, String> headers) {
         RequestSpecification req = given()
+                .filter(ExtentReportRequestFilter.INSTANCE)
                 .baseUri(baseUri)
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON)

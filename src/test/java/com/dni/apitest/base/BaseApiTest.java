@@ -3,6 +3,7 @@ package com.dni.apitest.base;
 import com.dni.apitest.config.TestConfig;
 import com.dni.apitest.http.LyticsProjectApiClient;
 import com.dni.apitest.listeners.ExtentTestNgListener;
+import com.dni.apitest.report.ExtentReportRequestFilter;
 import com.dni.apitest.report.ReportSteps;
 import io.restassured.RestAssured;
 import io.restassured.builder.RequestSpecBuilder;
@@ -25,6 +26,9 @@ import org.testng.annotations.Listeners;
  *
  * <p>{@link ExtentTestNgListener} is registered here (not only in {@code testng.xml}) so Extent
  * Reports still initialise and flush when a spec class is executed alone from the IDE.
+ *
+ * <p>Request bodies for REST Assured calls that use {@link #lyticsRequestSpec} are written to the
+ * report automatically via {@link ExtentReportRequestFilter}.
  */
 @Listeners(ExtentTestNgListener.class)
 public abstract class BaseApiTest {
@@ -59,6 +63,14 @@ public abstract class BaseApiTest {
         ReportSteps.jsonBlock("HTTP " + response.getStatusCode() + " — response body", body);
     }
 
+    /**
+     * Attaches a request payload to the Extent report (for tests that do not use {@link #lyticsRequestSpec}).
+     * Calls that go through {@link #lyticsRequestSpec} already log the body via {@link ExtentReportRequestFilter}.
+     */
+    protected static void reportRequestPayload(String title, Object payload) {
+        ReportSteps.requestPayloadBlock(title, payload);
+    }
+
     @BeforeClass(alwaysRun = true)
     public static void configureLyticsRestAssured() {
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
@@ -70,6 +82,7 @@ public abstract class BaseApiTest {
                 .addHeader("x-cs-api-version", TestConfig.lyticsApiVersion())
                 .addHeader("organization_uid", TestConfig.lyticsOrganizationUid())
                 .addHeader("authtoken", TestConfig.lyticsAuthToken())
+                .addFilter(ExtentReportRequestFilter.INSTANCE)
                 .log(LogDetail.URI)
                 .build();
 

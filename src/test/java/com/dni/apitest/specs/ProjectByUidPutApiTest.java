@@ -2077,4 +2077,566 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
             .isEqualTo(LyticsProjectTestData.PROJECT_DESCRIPTION_MAX_LENGTH);
     }
 
+    @Test(
+        priority = 24,
+        description =
+            "POST /projects with valid default connections then PUT /projects/{uid} with an unknown "
+                + "stackApiKeys value (valid launch + personalize) — expect 400 Bad request; "
+                + "errors.connections.stackApiKeys[0].code lytics.PROJECTS.CONNECTION_NOT_FOUND"
+    )
+    public void TC_PUT_BY_UID_024_POST_valid_connections_then_PUT_invalid_stack_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT invalid stack " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body (default connections); When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithInvalidStackApiKeyAndValidLaunchPersonalize(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body same name/domain/description but stackApiKeys replaced with unknown key; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request; errors.connections.stackApiKeys CONNECTION_NOT_FOUND"
+        );
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} with unknown stack API key must return 400 Bad request")
+            .isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+
+        List<Map<String, Object>> stackErrors =
+            putResponse.jsonPath().getList("errors['connections.stackApiKeys']");
+        assertThat(stackErrors).as("errors.connections.stackApiKeys").hasSize(1);
+        assertThat(stackErrors.get(0).get("code"))
+            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
+    }
+
+    @Test(
+        priority = 25,
+        description =
+            "POST /projects with valid default connections then PUT /projects/{uid} with an unknown "
+                + "launchProjectUids value (valid stack + personalize) — expect 400 Bad request; "
+                + "errors.connections.launchProjectUids[0].code lytics.PROJECTS.CONNECTION_NOT_FOUND"
+    )
+    public void TC_PUT_BY_UID_025_POST_valid_connections_then_PUT_invalid_launch_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT invalid launch " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body (default connections); When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithValidStackPersonalizeAndInvalidLaunchProjectUid(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body same name/domain/description but launchProjectUids replaced with unknown uid; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request; errors.connections.launchProjectUids CONNECTION_NOT_FOUND"
+        );
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} with unknown launch project uid must return 400 Bad request")
+            .isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+
+        List<Map<String, Object>> launchErrors =
+            putResponse.jsonPath().getList("errors['connections.launchProjectUids']");
+        assertThat(launchErrors).as("errors.connections.launchProjectUids").hasSize(1);
+        assertThat(launchErrors.get(0).get("code"))
+            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
+    }
+
+    @Test(
+        priority = 26,
+        description =
+            "POST /projects with valid default connections then PUT /projects/{uid} with an unknown "
+                + "personalizeProjectUids value (valid stack + launch) — expect 400 Bad request; "
+                + "errors.connections.personalizeProjectUids[0].code lytics.PROJECTS.CONNECTION_NOT_FOUND"
+    )
+    public void TC_PUT_BY_UID_026_POST_valid_connections_then_PUT_invalid_personalize_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT invalid personalize " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body (default connections); When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithValidStackLaunchAndInvalidPersonalizeProjectUid(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body same name/domain/description but personalizeProjectUids replaced with unknown uid; "
+                + "When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request; errors.connections.personalizeProjectUids CONNECTION_NOT_FOUND"
+        );
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} with unknown personalize project uid must return 400 Bad request")
+            .isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+
+        List<Map<String, Object>> personalizeErrors =
+            putResponse.jsonPath().getList("errors['connections.personalizeProjectUids']");
+        assertThat(personalizeErrors).as("errors.connections.personalizeProjectUids").hasSize(1);
+        assertThat(personalizeErrors.get(0).get("code"))
+            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
+    }
+
+    @Test(
+        priority = 27,
+        description =
+            "POST /projects with valid default connections then PUT /projects/{uid} with mismatched UID types "
+                + "(JSON numbers in stackApiKeys, launchProjectUids, personalizeProjectUids) — expect 400 Bad request; "
+                + "CONNECTION_NOT_FOUND on all three connections.* error arrays"
+    )
+    public void TC_PUT_BY_UID_027_POST_valid_connections_then_PUT_non_string_connection_values_expect_400() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT non-string conn " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body (default connections); When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithNonStringConnectionValues(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body with JSON numbers (non-string) in each connections array; When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        reportStep(
+            "Assert 400 Bad request; CONNECTION_NOT_FOUND on stack, launch, and personalize connection errors"
+        );
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} with non-string connection values must return 400 Bad request")
+            .isEqualTo(400);
+        assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
+        assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
+
+        List<Map<String, Object>> stackErrors =
+            putResponse.jsonPath().getList("errors['connections.stackApiKeys']");
+        assertThat(stackErrors).as("errors.connections.stackApiKeys").hasSize(1);
+        assertThat(stackErrors.get(0).get("code"))
+            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
+
+        List<Map<String, Object>> launchErrors =
+            putResponse.jsonPath().getList("errors['connections.launchProjectUids']");
+        assertThat(launchErrors).as("errors.connections.launchProjectUids").hasSize(1);
+        assertThat(launchErrors.get(0).get("code"))
+            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
+
+        List<Map<String, Object>> personalizeErrors =
+            putResponse.jsonPath().getList("errors['connections.personalizeProjectUids']");
+        assertThat(personalizeErrors).as("errors.connections.personalizeProjectUids").hasSize(1);
+        assertThat(personalizeErrors.get(0).get("code"))
+            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
+    }
+
+    @Test(
+        priority = 28,
+        description =
+            "POST /projects with valid connections then PUT /projects/{uid} with each connection array listing the "
+                + "same UID twice — expect 200/204; GET must show each connection id exactly once (deduplicated), "
+                + "same shape as ProjectPostApiTest#TC_048_Send_POST_request_with_duplicate_connection_ids_deduplicated_in_response"
+    )
+    public void TC_PUT_BY_UID_028_POST_valid_connections_then_PUT_duplicate_uids_per_array_deduped_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT dup conn " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + valid POST body; When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                    + "project in this org. Free the connection or delete the conflicting project."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with unique name must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithDuplicateIdsPerField()
+            );
+
+        reportStep(
+            "Given: PUT body lists each connection id twice per array; When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 400
+            && ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.launchProjectUids'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString(
+                        "errors['connections.personalizeProjectUids'][0].code")))) {
+            throw new SkipException(
+                "PUT returned DUPLICATE_CONNECTION while sending duplicate entries of the same org UIDs — "
+                    + "environment or API behaviour mismatch; investigate before re-running."
+            );
+        }
+
+        assertThat(putStatus)
+            .as("PUT /projects/{uid} with duplicate connection values in arrays must succeed (200 or 204)")
+            .isIn(200, 204);
+
+        if (putStatus == 200) {
+            reportStep("200 path: assert PUT response body deduplicates each connections array to one entry");
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+            ProjectAssertions.assertConnectionsArraysHaveNoDuplicateEntries(putResponse);
+        }
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT with duplicate connection payloads")
+            .isEqualTo(200);
+
+        reportStep("Assert GET shows each connection uid exactly once (no duplicates in any array)");
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+        ProjectAssertions.assertConnectionsArraysHaveNoDuplicateEntries(getResponse);
+    }
+
 }

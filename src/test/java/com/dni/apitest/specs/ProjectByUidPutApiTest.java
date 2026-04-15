@@ -2495,25 +2495,29 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
     @Test(
         priority = 28,
         description =
-            "POST /projects with valid connections then PUT /projects/{uid} with each connection array listing the "
-                + "same UID twice — expect 200/204; GET must show each connection id exactly once (deduplicated), "
-                + "same shape as ProjectPostApiTest#TC_048_Send_POST_request_with_duplicate_connection_ids_deduplicated_in_response"
+            "Curl-shaped POST /projects (single connection ids) then PUT /projects/{uid} with each array listing the "
+                + "same id twice (www.contentstack.com, fixed project name) — expect 200/204; GET project matches "
+                + "curl example: deduplicated connections, organizationUid from config, cdp.status active, audit fields"
     )
     public void TC_PUT_BY_UID_028_POST_valid_connections_then_PUT_duplicate_uids_per_array_deduped_on_read() {
         reportStep("Reset cleanup uid so DELETE runs after a successful POST");
         projectUidToCleanup = null;
 
-        String projectName = "DNI PUT dup conn " + UUID.randomUUID();
+        // POST /projects — same JSON shape as manual curl (single value per connection array).
+        final String curlProjectName = "DNI Test duplicate connections";
+        final String curlDomain = "www.contentstack.com";
+        final String curlDescription = "This is a sample project description";
 
         Map<String, Object> postBody =
-            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
-                projectName,
-                LyticsProjectTestData.VALID_DOMAIN,
-                LyticsProjectTestData.VALID_DESCRIPTION
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                curlProjectName,
+                curlDomain,
+                curlDescription,
+                LyticsProjectPayloadBuilder.defaultConnections()
             );
 
         reportStep(
-            "Given: Lytics headers + valid POST body; When: POST "
+            "Given: Lytics headers + curl-shaped POST body (single stack/launch/personalize); When: POST "
                 + ApiPaths.PROJECTS
                 + "; Then: extract response"
         );
@@ -2532,34 +2536,54 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
         reportResponseBody(postResponse);
 
         int postStatus = postResponse.getStatusCode();
-        if (postStatus == 400
-            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
-                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
-            )) {
-            throw new SkipException(
-                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
-                    + "project in this org. Free the connection or delete the conflicting project."
-            );
+        if (postStatus == 400) {
+            if ("lytics.PROJECTS.DUPLICATE_PROJECT_NAME".equals(
+                    postResponse.jsonPath().getString("errors.name[0].code"))) {
+                throw new SkipException(
+                    "POST DUPLICATE_PROJECT_NAME: delete the existing project named '"
+                        + curlProjectName
+                        + "' or pick another environment."
+                );
+            }
+            if ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))) {
+                throw new SkipException(
+                    "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another "
+                        + "project in this org. Free the connection or delete the conflicting project."
+                );
+            }
         }
 
         assertThat(postStatus)
-            .as("POST /projects with unique name must return 201 Created")
+            .as("POST /projects with curl-shaped body must return 201 Created")
             .isEqualTo(201);
 
         String projectUid = postResponse.jsonPath().getString("uid");
         assertThat(projectUid).isNotBlank();
         projectUidToCleanup = projectUid;
 
+        reportStep("Assert POST 201 response echoes curl-shaped name, domain, description and single connection ids");
+        assertThat(postResponse.jsonPath().getString("name")).isEqualTo(curlProjectName);
+        assertThat(postResponse.jsonPath().getString("domain")).isEqualTo(curlDomain);
+        assertThat(postResponse.jsonPath().getString("description")).isEqualTo(curlDescription);
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+
+        // PUT /projects/{uid} — same scalars; connections list each id twice (curl duplicate-array shape).
         Map<String, Object> putBody =
             LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
-                projectName,
-                LyticsProjectTestData.VALID_DOMAIN,
-                LyticsProjectTestData.VALID_DESCRIPTION,
+                curlProjectName,
+                curlDomain,
+                curlDescription,
                 LyticsProjectPayloadBuilder.connectionsWithDuplicateIdsPerField()
             );
 
         reportStep(
-            "Given: PUT body lists each connection id twice per array; When: PUT "
+            "Given: curl-shaped PUT body (duplicate ids per connections array); When: PUT "
                 + ApiPaths.projectByUid(projectUid)
                 + "; Then: extract response"
         );
@@ -2597,7 +2621,13 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
             .isIn(200, 204);
 
         if (putStatus == 200) {
-            reportStep("200 path: assert PUT response body deduplicates each connections array to one entry");
+            reportStep("200 path: assert PUT response mirrors GET shape (deduplicated connections, same scalars)");
+            assertThat(putResponse.jsonPath().getString("uid")).isEqualTo(projectUid);
+            assertThat(putResponse.jsonPath().getString("name")).isEqualTo(curlProjectName);
+            assertThat(putResponse.jsonPath().getString("domain")).isEqualTo(curlDomain);
+            assertThat(putResponse.jsonPath().getString("description")).isEqualTo(curlDescription);
+            assertThat(putResponse.jsonPath().getString("organizationUid"))
+                .isEqualTo(TestConfig.lyticsOrganizationUid());
             assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
                 .containsExactly(LyticsProjectTestData.STACK_API_KEY);
             assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
@@ -2605,6 +2635,16 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
             assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
                 .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
             ProjectAssertions.assertConnectionsArraysHaveNoDuplicateEntries(putResponse);
+            assertThat(putResponse.jsonPath().getString("cdp.status")).isEqualTo("active");
+            Object putCdpAid = putResponse.jsonPath().get("cdp.aid");
+            assertThat(putCdpAid).as("PUT cdp.aid").isNotNull();
+            assertThat(putResponse.jsonPath().getString("cdp.orgId")).isNotBlank();
+            assertThat(putResponse.jsonPath().getString("cdp.accountId")).isNotBlank();
+            assertThat(putResponse.jsonPath().getString("cdp.syncedAt")).isNotBlank();
+            assertThat(putResponse.jsonPath().getString("createdBy")).isNotBlank();
+            assertThat(putResponse.jsonPath().getString("createdAt")).isNotBlank();
+            assertThat(putResponse.jsonPath().getString("updatedBy")).isNotBlank();
+            assertThat(putResponse.jsonPath().getString("updatedAt")).isNotBlank();
         }
 
         reportStep(
@@ -2629,7 +2669,15 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
             .as("GET /projects/{uid} after PUT with duplicate connection payloads")
             .isEqualTo(200);
 
-        reportStep("Assert GET shows each connection uid exactly once (no duplicates in any array)");
+        reportStep(
+            "Assert GET project matches curl example: uid, scalars, organizationUid, deduplicated connections, cdp, audit"
+        );
+        assertThat(getResponse.jsonPath().getString("uid")).isEqualTo(projectUid);
+        assertThat(getResponse.jsonPath().getString("name")).isEqualTo(curlProjectName);
+        assertThat(getResponse.jsonPath().getString("domain")).isEqualTo(curlDomain);
+        assertThat(getResponse.jsonPath().getString("description")).isEqualTo(curlDescription);
+        assertThat(getResponse.jsonPath().getString("organizationUid"))
+            .isEqualTo(TestConfig.lyticsOrganizationUid());
         assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
             .containsExactly(LyticsProjectTestData.STACK_API_KEY);
         assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
@@ -2637,6 +2685,18 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
         assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
             .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
         ProjectAssertions.assertConnectionsArraysHaveNoDuplicateEntries(getResponse);
+
+        assertThat(getResponse.jsonPath().getString("cdp.status")).isEqualTo("active");
+        Object getCdpAid = getResponse.jsonPath().get("cdp.aid");
+        assertThat(getCdpAid).as("GET cdp.aid").isNotNull();
+        assertThat(getResponse.jsonPath().getString("cdp.orgId")).isNotBlank();
+        assertThat(getResponse.jsonPath().getString("cdp.accountId")).isNotBlank();
+        assertThat(getResponse.jsonPath().getString("cdp.syncedAt")).isNotBlank();
+
+        assertThat(getResponse.jsonPath().getString("createdBy")).isNotBlank();
+        assertThat(getResponse.jsonPath().getString("createdAt")).isNotBlank();
+        assertThat(getResponse.jsonPath().getString("updatedBy")).isNotBlank();
+        assertThat(getResponse.jsonPath().getString("updatedAt")).isNotBlank();
     }
 
 }

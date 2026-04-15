@@ -2385,7 +2385,7 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
         description =
             "POST /projects with valid default connections then PUT /projects/{uid} with mismatched UID types "
                 + "(JSON numbers in stackApiKeys, launchProjectUids, personalizeProjectUids) — expect 400 Bad request; "
-                + "CONNECTION_NOT_FOUND on all three connections.* error arrays"
+                + "errors.connections[] each lytics.PROJECTS.NOT_STRING_ARRAY"
     )
     public void TC_PUT_BY_UID_027_POST_valid_connections_then_PUT_non_string_connection_values_expect_400() {
         reportStep("Reset cleanup uid so DELETE runs after a successful POST");
@@ -2465,7 +2465,7 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
         reportResponseBody(putResponse);
 
         reportStep(
-            "Assert 400 Bad request; CONNECTION_NOT_FOUND on stack, launch, and personalize connection errors"
+            "Assert 400 Bad request; errors.connections lists NOT_STRING_ARRAY for each non-string connection array"
         );
         assertThat(putResponse.getStatusCode())
             .as("PUT /projects/{uid} with non-string connection values must return 400 Bad request")
@@ -2473,23 +2473,13 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
         assertThat(putResponse.jsonPath().getString("message")).isEqualTo("Bad request");
         assertThat(putResponse.jsonPath().getInt("status")).isEqualTo(400);
 
-        List<Map<String, Object>> stackErrors =
-            putResponse.jsonPath().getList("errors['connections.stackApiKeys']");
-        assertThat(stackErrors).as("errors.connections.stackApiKeys").hasSize(1);
-        assertThat(stackErrors.get(0).get("code"))
-            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
-
-        List<Map<String, Object>> launchErrors =
-            putResponse.jsonPath().getList("errors['connections.launchProjectUids']");
-        assertThat(launchErrors).as("errors.connections.launchProjectUids").hasSize(1);
-        assertThat(launchErrors.get(0).get("code"))
-            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
-
-        List<Map<String, Object>> personalizeErrors =
-            putResponse.jsonPath().getList("errors['connections.personalizeProjectUids']");
-        assertThat(personalizeErrors).as("errors.connections.personalizeProjectUids").hasSize(1);
-        assertThat(personalizeErrors.get(0).get("code"))
-            .isEqualTo("lytics.PROJECTS.CONNECTION_NOT_FOUND");
+        List<Map<String, Object>> connectionErrors = putResponse.jsonPath().getList("errors.connections");
+        assertThat(connectionErrors).as("errors.connections").hasSize(3);
+        for (int i = 0; i < 3; i++) {
+            assertThat(connectionErrors.get(i).get("code"))
+                .as("errors.connections[%d].code", i)
+                .isEqualTo("lytics.PROJECTS.NOT_STRING_ARRAY");
+        }
     }
 
     @Test(

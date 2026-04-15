@@ -118,6 +118,15 @@ public final class LyticsProjectPayloadBuilder {
         return c;
     }
 
+    /** All three connection arrays empty ({@code []}). */
+    public static Map<String, Object> connectionsWithAllEmptyArrays() {
+        Map<String, Object> c = new HashMap<>();
+        c.put("stackApiKeys", Collections.emptyList());
+        c.put("launchProjectUids", Collections.emptyList());
+        c.put("personalizeProjectUids", Collections.emptyList());
+        return c;
+    }
+
     /** Each connection array contains only an empty string. */
     public static Map<String, Object> connectionsWithAllConnectionArraysContainingOnlyEmptyStrings() {
         Map<String, Object> c = new HashMap<>();

@@ -2702,9 +2702,9 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
     @Test(
         priority = 29,
         description =
-            "POST /projects with default connections then PUT /projects/{uid} with connections: all three arrays [] "
-                + "(www.contentstack.com scalars) — expect 200/204; GET shows empty stackApiKeys, launchProjectUids, "
-                + "personalizeProjectUids; organizationUid from config; cdp.status active; audit fields present"
+            "POST /projects with default connections then PUT removes all connections (all three arrays []); "
+                + "www.contentstack.com scalars — expect 200/204; GET empty connections; organizationUid, cdp, audit "
+                + "(VALID_DOMAIN variant: TC_PUT_BY_UID_037)"
     )
     public void TC_PUT_BY_UID_029_POST_with_connections_then_PUT_empty_connection_arrays_expect_empty_on_read() {
         reportStep("Reset cleanup uid so DELETE runs after a successful POST");
@@ -3250,6 +3250,1357 @@ public void TC_PUT_BY_UID_002_POST_then_PUT_valid_request_update_domain_only() {
 
         reportStep("Assert GET connections: personalizeProjectUids populated; stack and launch empty");
         assertThat(getResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+    }
+
+    @Test(
+        priority = 33,
+        description =
+            "POST /projects with default connections (stack + launch + personalize) then PUT /projects/{uid} with "
+                + "stackApiKeys [] and same launch/personalize — expect 200/204; GET shows no stack key; launch and "
+                + "personalize unchanged"
+    )
+    public void TC_PUT_BY_UID_033_POST_with_connections_then_PUT_remove_stack_expect_launch_personalize_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT remove stack " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: POST body with default connections; When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another project in this org."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with default connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        reportStep("Assert POST response has all three connection ids");
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithLaunchPersonalizeAndEmptyStackApiKeys()
+            );
+
+        reportStep(
+            "Given: PUT body with stackApiKeys [] and launch/personalize unchanged; When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} removing stack connection must succeed (200 or 204)")
+            .isIn(200, 204);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 200) {
+            reportStep("200 path: assert PUT response has empty stack; launch and personalize unchanged");
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+        }
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT removing stack connection")
+            .isEqualTo(200);
+
+        reportStep("Assert GET: stackApiKeys empty; launch and personalize match prior connections");
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+    }
+
+    @Test(
+        priority = 34,
+        description =
+            "POST /projects with default connections then PUT /projects/{uid} with launchProjectUids [] and same "
+                + "stack/personalize — expect 200/204; GET shows no launch uid; stack and personalize unchanged"
+    )
+    public void TC_PUT_BY_UID_034_POST_with_connections_then_PUT_remove_launch_expect_stack_personalize_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT remove launch " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: POST body with default connections; When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another project in this org."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with default connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        reportStep("Assert POST response has all three connection ids");
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithStackPersonalizeAndEmptyLaunchProjectUids()
+            );
+
+        reportStep(
+            "Given: PUT body with launchProjectUids [] and stack/personalize unchanged; When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} removing launch connection must succeed (200 or 204)")
+            .isIn(200, 204);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 200) {
+            reportStep("200 path: assert PUT response has empty launch; stack and personalize unchanged");
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+        }
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT removing launch connection")
+            .isEqualTo(200);
+
+        reportStep("Assert GET: launchProjectUids empty; stack and personalize match prior connections");
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+    }
+
+    @Test(
+        priority = 35,
+        description =
+            "POST /projects with default connections then PUT /projects/{uid} with personalizeProjectUids [] and "
+                + "same stack/launch — expect 200/204; GET shows no personalize uid; stack and launch unchanged"
+    )
+    public void TC_PUT_BY_UID_035_POST_with_connections_then_PUT_remove_personalize_expect_stack_launch_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT remove personalize " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: POST body with default connections; When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another project in this org."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with default connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        reportStep("Assert POST response has all three connection ids");
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithStackLaunchAndEmptyPersonalizeProjectUids()
+            );
+
+        reportStep(
+            "Given: PUT body with personalizeProjectUids [] and stack/launch unchanged; When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} removing personalize connection must succeed (200 or 204)")
+            .isIn(200, 204);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 200) {
+            reportStep("200 path: assert PUT response has empty personalize; stack and launch unchanged");
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+        }
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT removing personalize connection")
+            .isEqualTo(200);
+
+        reportStep("Assert GET: personalizeProjectUids empty; stack and launch match prior connections");
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+    }
+
+    @Test(
+        priority = 36,
+        description =
+            "POST /projects with connections field omitted then PUT /projects/{uid} with full default connections "
+                + "(stack + launch + personalize) — expect 200/204; GET shows all three connection ids"
+    )
+    public void TC_PUT_BY_UID_036_POST_without_connections_then_PUT_add_all_connections_expect_full_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI POST no conn PUT all " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: Lytics headers + body with name, domain, description; connections key absent; When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        assertThat(postStatus)
+            .as("POST /projects without connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        reportStep("Assert POST 201 echoes empty connection arrays");
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: PUT body with default connections (all three ids); When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 400
+            && ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.launchProjectUids'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString(
+                        "errors['connections.personalizeProjectUids'][0].code")))) {
+            throw new SkipException(
+                "PUT returned DUPLICATE_CONNECTION: one or more connection ids are already linked to another "
+                    + "project in this org. Free those connections or use alternate test data."
+            );
+        }
+
+        assertThat(putStatus)
+            .as("PUT /projects/{uid} adding full default connections must succeed (200 or 204)")
+            .isIn(200, 204);
+
+        if (putStatus == 200) {
+            reportStep("200 path: assert PUT response has all three default connection ids");
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+        }
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT adding all connections")
+            .isEqualTo(200);
+
+        reportStep("Assert GET connections: stack, launch, and personalize populated with default test ids");
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+    }
+
+    @Test(
+        priority = 37,
+        description =
+            "POST /projects with default connections (inverse of TC_PUT_BY_UID_036) then PUT /projects/{uid} with "
+                + "connectionsWithAllEmptyArrays — remove all stack, launch, and personalize — expect 200/204; GET shows "
+                + "empty connection arrays (see TC_PUT_BY_UID_029 for www.contentstack.com + full cdp assertions)"
+    )
+    public void TC_PUT_BY_UID_037_POST_with_connections_then_PUT_remove_all_connections_expect_empty_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT remove all conn " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep(
+            "Given: POST body with default connections (all three ids); When: POST "
+                + ApiPaths.PROJECTS
+                + "; Then: extract response"
+        );
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another project in this org."
+            );
+        }
+
+        assertThat(postStatus)
+            .as("POST /projects with default connections must return 201 Created")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        reportStep("Assert POST 201 has all three connection ids before clearing on PUT");
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithAllEmptyArrays()
+            );
+
+        reportStep(
+            "Given: PUT body removes all connections (empty arrays); When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT /projects/{uid} clearing all connection arrays must succeed (200 or 204)")
+            .isIn(200, 204);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 200) {
+            reportStep("200 path: assert PUT response has empty connection arrays");
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+        }
+
+        reportStep(
+            "Given: Lytics headers; When: GET "
+                + ApiPaths.projectByUid(projectUid)
+                + "; Then: extract response"
+        );
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode())
+            .as("GET /projects/{uid} after PUT removing all connections")
+            .isEqualTo(200);
+
+        reportStep("Assert GET: all connection arrays empty");
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+    }
+
+    @Test(
+        priority = 38,
+        description =
+            "POST /projects with full default connections then PUT removes stack and launch (personalize only) — "
+                + "connectionsWithPersonalizeOnlyAndEmptyStackAndLaunch; expect 200/204; GET personalize only"
+    )
+    public void TC_PUT_BY_UID_038_POST_full_connections_then_PUT_remove_stack_and_launch_expect_personalize_only() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT drop stack+launch " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep("Given: POST body with full default connections; When: POST " + ApiPaths.PROJECTS);
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another project in this org."
+            );
+        }
+
+        assertThat(postStatus).as("POST with full connections").isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithPersonalizeOnlyAndEmptyStackAndLaunch()
+            );
+
+        reportStep(
+            "Given: PUT clears stack and launch (personalize only); When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT removing stack and launch")
+            .isIn(200, 204);
+
+        if (putResponse.getStatusCode() == 200) {
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+        }
+
+        reportStep("When: GET " + ApiPaths.projectByUid(projectUid) + "; Then: assert personalize only");
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode()).isEqualTo(200);
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+    }
+
+    @Test(
+        priority = 39,
+        description =
+            "POST /projects with full default connections then PUT removes launch and personalize (stack only) — "
+                + "connectionsOnlyStackApiKeys; expect 200/204; GET stack only"
+    )
+    public void TC_PUT_BY_UID_039_POST_full_connections_then_PUT_remove_launch_and_personalize_expect_stack_only() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT drop launch+pers " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep("Given: POST body with full default connections; When: POST " + ApiPaths.PROJECTS);
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another project in this org."
+            );
+        }
+
+        assertThat(postStatus).as("POST with full connections").isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsOnlyStackApiKeys()
+            );
+
+        reportStep(
+            "Given: PUT clears launch and personalize (stack only); When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT removing launch and personalize")
+            .isIn(200, 204);
+
+        if (putResponse.getStatusCode() == 200) {
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+        }
+
+        reportStep("When: GET " + ApiPaths.projectByUid(projectUid) + "; Then: assert stack only");
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode()).isEqualTo(200);
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+    }
+
+    @Test(
+        priority = 40,
+        description =
+            "POST /projects with full default connections then PUT removes stack and personalize (launch only) — "
+                + "connectionsWithLaunchOnlyAndEmptyStackAndPersonalize; expect 200/204; GET launch only"
+    )
+    public void TC_PUT_BY_UID_040_POST_full_connections_then_PUT_remove_stack_and_personalize_expect_launch_only() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI PUT drop stack+pers " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainAndDescription(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep("Given: POST body with full default connections; When: POST " + ApiPaths.PROJECTS);
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        int postStatus = postResponse.getStatusCode();
+        if (postStatus == 400
+            && "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                postResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code")
+            )) {
+            throw new SkipException(
+                "POST returned DUPLICATE_CONNECTION: stackApiKey is already linked to another project in this org."
+            );
+        }
+
+        assertThat(postStatus).as("POST with full connections").isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithLaunchOnlyAndEmptyStackAndPersonalize()
+            );
+
+        reportStep(
+            "Given: PUT clears stack and personalize (launch only); When: PUT "
+                + ApiPaths.projectByUid(projectUid)
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        assertThat(putResponse.getStatusCode())
+            .as("PUT removing stack and personalize")
+            .isIn(200, 204);
+
+        if (putResponse.getStatusCode() == 200) {
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+        }
+
+        reportStep("When: GET " + ApiPaths.projectByUid(projectUid) + "; Then: assert launch only");
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode()).isEqualTo(200);
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+    }
+
+    @Test(
+        priority = 41,
+        description =
+            "POST /projects without connections then PUT adds stack + launch only (personalize []) — "
+                + "connectionsWithStackLaunchAndEmptyPersonalizeProjectUids; expect 200/204; GET matches"
+    )
+    public void TC_PUT_BY_UID_041_POST_without_connections_then_PUT_add_stack_and_launch_expect_pair_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI POST no conn PUT stack+launch " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep("Given: POST without connections; When: POST " + ApiPaths.PROJECTS);
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        assertThat(postResponse.getStatusCode())
+            .as("POST without connections")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithStackLaunchAndEmptyPersonalizeProjectUids()
+            );
+
+        reportStep(
+            "Given: PUT adds stack + launch; When: PUT " + ApiPaths.projectByUid(projectUid)
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 400
+            && ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.launchProjectUids'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString(
+                        "errors['connections.personalizeProjectUids'][0].code")))) {
+            throw new SkipException(
+                "PUT returned DUPLICATE_CONNECTION: free stack/launch/personalize test ids or use alternate data."
+            );
+        }
+
+        assertThat(putStatus).as("PUT adding stack and launch").isIn(200, 204);
+
+        if (putStatus == 200) {
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+        }
+
+        reportStep("When: GET " + ApiPaths.projectByUid(projectUid) + "; Then: assert stack + launch only");
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode()).isEqualTo(200);
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+    }
+
+    @Test(
+        priority = 42,
+        description =
+            "POST /projects without connections then PUT adds launch + personalize only (stack []) — "
+                + "connectionsWithLaunchPersonalizeAndEmptyStackApiKeys; expect 200/204; GET matches"
+    )
+    public void TC_PUT_BY_UID_042_POST_without_connections_then_PUT_add_launch_and_personalize_expect_pair_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI POST no conn PUT launch+pers " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep("Given: POST without connections; When: POST " + ApiPaths.PROJECTS);
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        assertThat(postResponse.getStatusCode())
+            .as("POST without connections")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithLaunchPersonalizeAndEmptyStackApiKeys()
+            );
+
+        reportStep(
+            "Given: PUT adds launch + personalize; When: PUT " + ApiPaths.projectByUid(projectUid)
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 400
+            && ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.launchProjectUids'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString(
+                        "errors['connections.personalizeProjectUids'][0].code")))) {
+            throw new SkipException(
+                "PUT returned DUPLICATE_CONNECTION: free stack/launch/personalize test ids or use alternate data."
+            );
+        }
+
+        assertThat(putStatus).as("PUT adding launch and personalize").isIn(200, 204);
+
+        if (putStatus == 200) {
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids"))
+                .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+        }
+
+        reportStep("When: GET " + ApiPaths.projectByUid(projectUid) + "; Then: assert launch + personalize only");
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode()).isEqualTo(200);
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(getResponse.jsonPath().getList("connections.launchProjectUids"))
+            .containsExactly(LyticsProjectTestData.LAUNCH_PROJECT_UID);
+        assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
+            .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+    }
+
+    @Test(
+        priority = 43,
+        description =
+            "POST /projects without connections then PUT adds stack + personalize only (launch []) — "
+                + "connectionsWithStackPersonalizeAndEmptyLaunchProjectUids; expect 200/204; GET matches"
+    )
+    public void TC_PUT_BY_UID_043_POST_without_connections_then_PUT_add_stack_and_personalize_expect_pair_on_read() {
+        reportStep("Reset cleanup uid so DELETE runs after a successful POST");
+        projectUidToCleanup = null;
+
+        String projectName = "DNI POST no conn PUT stack+pers " + UUID.randomUUID();
+
+        Map<String, Object> postBody =
+            LyticsProjectPayloadBuilder.projectCreatePayloadWithoutConnectionsField(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION
+            );
+
+        reportStep("Given: POST without connections; When: POST " + ApiPaths.PROJECTS);
+
+        Response postResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(postBody)
+                .when()
+                .post(ApiPaths.PROJECTS)
+                .then()
+                .extract()
+                .response();
+
+        postResponse.prettyPrint();
+        reportResponseBody(postResponse);
+
+        assertThat(postResponse.getStatusCode())
+            .as("POST without connections")
+            .isEqualTo(201);
+
+        String projectUid = postResponse.jsonPath().getString("uid");
+        assertThat(projectUid).isNotBlank();
+        projectUidToCleanup = projectUid;
+
+        assertThat(postResponse.jsonPath().getList("connections.stackApiKeys")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+        assertThat(postResponse.jsonPath().getList("connections.personalizeProjectUids")).isEmpty();
+
+        Map<String, Object> putBody =
+            LyticsProjectPayloadBuilder.validFullProjectCreatePayloadWithNameDomainDescriptionAndConnections(
+                projectName,
+                LyticsProjectTestData.VALID_DOMAIN,
+                LyticsProjectTestData.VALID_DESCRIPTION,
+                LyticsProjectPayloadBuilder.connectionsWithStackPersonalizeAndEmptyLaunchProjectUids()
+            );
+
+        reportStep(
+            "Given: PUT adds stack + personalize; When: PUT " + ApiPaths.projectByUid(projectUid)
+        );
+
+        Response putResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .body(putBody)
+                .when()
+                .put(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        putResponse.prettyPrint();
+        reportResponseBody(putResponse);
+
+        int putStatus = putResponse.getStatusCode();
+        if (putStatus == 400
+            && ("lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.stackApiKeys'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString("errors['connections.launchProjectUids'][0].code"))
+                || "lytics.PROJECTS.DUPLICATE_CONNECTION".equals(
+                    putResponse.jsonPath().getString(
+                        "errors['connections.personalizeProjectUids'][0].code")))) {
+            throw new SkipException(
+                "PUT returned DUPLICATE_CONNECTION: free stack/launch/personalize test ids or use alternate data."
+            );
+        }
+
+        assertThat(putStatus).as("PUT adding stack and personalize").isIn(200, 204);
+
+        if (putStatus == 200) {
+            assertThat(putResponse.jsonPath().getList("connections.stackApiKeys"))
+                .containsExactly(LyticsProjectTestData.STACK_API_KEY);
+            assertThat(putResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
+            assertThat(putResponse.jsonPath().getList("connections.personalizeProjectUids"))
+                .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);
+        }
+
+        reportStep("When: GET " + ApiPaths.projectByUid(projectUid) + "; Then: assert stack + personalize only");
+
+        Response getResponse =
+            given()
+                .spec(lyticsRequestSpec)
+                .when()
+                .get(ApiPaths.projectByUid(projectUid))
+                .then()
+                .extract()
+                .response();
+
+        getResponse.prettyPrint();
+        reportResponseBody(getResponse);
+
+        assertThat(getResponse.getStatusCode()).isEqualTo(200);
+        assertThat(getResponse.jsonPath().getList("connections.stackApiKeys"))
+            .containsExactly(LyticsProjectTestData.STACK_API_KEY);
         assertThat(getResponse.jsonPath().getList("connections.launchProjectUids")).isEmpty();
         assertThat(getResponse.jsonPath().getList("connections.personalizeProjectUids"))
             .containsExactly(LyticsProjectTestData.PERSONALIZE_PROJECT_UID);

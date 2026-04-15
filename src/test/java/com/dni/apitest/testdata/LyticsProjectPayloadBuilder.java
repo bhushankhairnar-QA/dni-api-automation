@@ -118,6 +118,46 @@ public final class LyticsProjectPayloadBuilder {
         return c;
     }
 
+    /** Stack and personalize valid; {@code launchProjectUids} is an empty array. */
+    public static Map<String, Object> connectionsWithStackPersonalizeAndEmptyLaunchProjectUids() {
+        Map<String, Object> c = new HashMap<>();
+        c.put("stackApiKeys", Arrays.asList(STACK_API_KEY));
+        c.put("launchProjectUids", Collections.emptyList());
+        c.put("personalizeProjectUids", Arrays.asList(PERSONALIZE_PROJECT_UID));
+        return c;
+    }
+
+    /** Stack and launch valid; {@code personalizeProjectUids} is an empty array. */
+    public static Map<String, Object> connectionsWithStackLaunchAndEmptyPersonalizeProjectUids() {
+        Map<String, Object> c = new HashMap<>();
+        c.put("stackApiKeys", Arrays.asList(STACK_API_KEY));
+        c.put("launchProjectUids", Arrays.asList(LAUNCH_PROJECT_UID));
+        c.put("personalizeProjectUids", Collections.emptyList());
+        return c;
+    }
+
+    /**
+     * Only {@code personalizeProjectUids} populated; stack and launch cleared (removed on PUT vs full triple).
+     */
+    public static Map<String, Object> connectionsWithPersonalizeOnlyAndEmptyStackAndLaunch() {
+        Map<String, Object> c = new HashMap<>();
+        c.put("stackApiKeys", Collections.emptyList());
+        c.put("launchProjectUids", Collections.emptyList());
+        c.put("personalizeProjectUids", Arrays.asList(PERSONALIZE_PROJECT_UID));
+        return c;
+    }
+
+    /**
+     * Only {@code launchProjectUids} populated; stack and personalize cleared (removed on PUT vs full triple).
+     */
+    public static Map<String, Object> connectionsWithLaunchOnlyAndEmptyStackAndPersonalize() {
+        Map<String, Object> c = new HashMap<>();
+        c.put("stackApiKeys", Collections.emptyList());
+        c.put("launchProjectUids", Arrays.asList(LAUNCH_PROJECT_UID));
+        c.put("personalizeProjectUids", Collections.emptyList());
+        return c;
+    }
+
     /** All three connection arrays empty ({@code []}). */
     public static Map<String, Object> connectionsWithAllEmptyArrays() {
         Map<String, Object> c = new HashMap<>();
